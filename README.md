@@ -59,6 +59,12 @@ Testes:
 npm test
 ```
 
+## Publicação (Vercel)
+
+Publicado em **https://caxxa.vercel.app** (projeto `caxxa` no time Movirun Club).
+O `vercel.json` roda `npm run vercel-build`, que compila o front e empacota a API Express como uma função Node
+em `.vercel/output` (Build Output API). As variáveis abaixo são cadastradas em *Project → Settings → Environment Variables*.
+
 ## Configuração
 
 | Variável | Uso |
