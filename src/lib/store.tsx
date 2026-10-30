@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { splitCompany, type LegacyLine } from "./migrate";
 import { demoState } from "./seed";
 import type { AppState } from "./types";
 
@@ -9,7 +10,11 @@ function load(): AppState {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
-      if (parsed.version === 1) return parsed;
+      if (parsed.version === 1) {
+        // Estados salvos antes do fluxo da empresa existir: separa as linhas da PJ.
+        if (!parsed.company) Object.assign(parsed, splitCompany(parsed.lines as LegacyLine[]));
+        return parsed;
+      }
     }
   } catch {
     /* armazenamento indisponível: segue com os dados de exemplo */

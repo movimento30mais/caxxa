@@ -1,10 +1,10 @@
 import { addMonths, currentMonth, monthRange } from "./months";
-import type { AppState, Bill, FlowLine, LineGroup, Transaction } from "./types";
+import type { AppState, Bill, CompanyLine, FlowLine, LineGroup, Transaction } from "./types";
 
 let seq = 0;
 export const uid = (p = "id") => `${p}_${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-function line(name: string, category: string, group: LineGroup, months: string[], value: number | ((i: number) => number)): FlowLine {
+function line<G extends string = LineGroup>(name: string, category: string, group: G, months: string[], value: number | ((i: number) => number)): FlowLine<G> {
   return {
     id: uid("l"),
     name,
@@ -20,8 +20,6 @@ function line(name: string, category: string, group: LineGroup, months: string[]
 export function demoState(now = new Date()): AppState {
   const start = currentMonth(now);
   const months = monthRange(start, 12);
-  const at = (i: number) => (j: number) => (j === i ? 1 : 0);
-  const dec = months.findIndex((m) => m.endsWith("-12"));
 
   const lines: FlowLine[] = [
     line("Cartão principal", "Cartões", "pessoal", months, -2000),
@@ -42,14 +40,18 @@ export function demoState(now = new Date()): AppState {
     line("TV + internet", "Serviços", "pessoal", months, -270),
     line("Seguro de vida", "Seguros", "pessoal", months, -800),
     line("Diversos", "Diversos", "pessoal", months, -2000),
-    line("Salário", "Renda", "renda", months, 32000),
-    line("13º salário", "Renda", "renda", months, (i) => (dec >= 0 ? at(dec)(i) * 30000 : 0)),
-    line("Impostos PJ", "Impostos", "empresa", months, -3700),
-    line("INSS", "Impostos", "empresa", months, -180),
-    line("Contabilidade", "Impostos", "empresa", months, -420),
+  ];
+  const companyLines: CompanyLine[] = [
+    line("Faturamento", "Renda", "faturamento", months, (i) => 36000 + (i % 3 === 2 ? 4000 : 0)),
+    { ...line("Simples Nacional", "Impostos", "despesa", months, 0), pctFaturamento: 0.06 },
+    line("INSS (pró-labore)", "Impostos", "despesa", months, -165),
+    line("Contabilidade", "Impostos", "despesa", months, -420),
+    line("Software e assinaturas", "Serviços", "despesa", months, -150),
+    line("Pró-labore", "Renda", "retirada", months, 1500),
+    { ...line("Lucro distribuído", "Renda", "retirada", months, 0), auto: true },
   ];
   // Base (orçamento mensal) = valor mais frequente de cada linha, como na coluna B da planilha.
-  for (const l of lines) {
+  for (const l of [...lines, ...companyLines]) {
     const freq = new Map<number, number>();
     for (const v of Object.values(l.values)) freq.set(v, (freq.get(v) ?? 0) + 1);
     const top = [...freq].sort((a, b) => b[1] - a[1])[0];
@@ -60,6 +62,7 @@ export function demoState(now = new Date()): AppState {
     version: 1,
     settings: { startMonth: start, months: 12, openingBalance: 28000, sweep: true },
     lines,
+    company: { name: "Minha empresa", openingBalance: 15000, lines: companyLines },
     investments: [
       { id: uid("i"), name: "Reserva (CDB liquidez diária)", balance: 45000, monthlyRate: 0.008, sweepTarget: true, kind: "investimento" },
       { id: uid("i"), name: "Tesouro IPCA+", balance: 120000, monthlyRate: 0.005, sweepTarget: false, kind: "investimento" },
@@ -89,7 +92,7 @@ function demoTransactions(start: string, today: number): Transaction[] {
   const rnd = mulberry32(42);
   const out: Transaction[] = [];
   const recurring: [string, string, number, number][] = [
-    ["Salário", "Renda", 32000, 1],
+    ["Pró-labore + lucro (empresa)", "Renda", 32000, 1],
     ["Condomínio", "Moradia", -2200, 5],
     ["Plano de saúde", "Saúde", -2380, 10],
     ["Diarista", "Serviços", -3800, 6],

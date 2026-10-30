@@ -11,7 +11,8 @@ export interface MonthResult {
   resgate: number;
   saldo2: number;
   renda: number;
-  empresa: number;
+  /** Retiradas da empresa (pró-labore + lucro) recebidas no mês. */
+  retiradas: number;
   extra: number;
   saldoFinal: number;
   /** Saldo de cada investimento ao fim do mês, por id. */
@@ -29,7 +30,7 @@ export function sumGroup(lines: FlowLine[], group: LineGroup, month: MonthKey): 
  * Reproduz a aba "Fluxo de Caixa" da planilha:
  *   Saldo 1     = Saldo Inicial + Σ despesas pessoais
  *   Resgate     = −Saldo 1 (quando o sweep está ligado — a sobra vai para o investimento, o déficit sai dele)
- *   Saldo final = Saldo 2 + Salário + Despesas empresa + extras
+ *   Saldo final = Saldo 2 + receitas pessoais + retiradas da empresa + extras
  *   Próximo Saldo Inicial = Saldo final
  * Investimentos rendem a taxa mensal e a conta "sweepTarget" recebe o Saldo 1.
  */
@@ -37,6 +38,8 @@ export function computeCashflow(
   settings: CashflowSettings,
   lines: FlowLine[],
   investments: Investment[],
+  /** Retiradas da empresa por mês (de computeCompany), que entram como receita. */
+  retiradasPorMes: Record<MonthKey, number> = {},
 ): MonthResult[] {
   const months = monthRange(settings.startMonth, settings.months);
   const balances: Record<string, number> = Object.fromEntries(investments.map((i) => [i.id, i.balance]));
@@ -49,9 +52,9 @@ export function computeCashflow(
     const resgate = settings.sweep ? -saldo1 : 0;
     const saldo2 = saldo1 + resgate;
     const renda = sumGroup(lines, "renda", month);
-    const empresa = sumGroup(lines, "empresa", month);
+    const retiradas = retiradasPorMes[month] ?? 0;
     const extra = sumGroup(lines, "extra", month);
-    const saldoFinal = saldo2 + renda + empresa + extra;
+    const saldoFinal = saldo2 + renda + retiradas + extra;
 
     for (const inv of investments) balances[inv.id] *= 1 + inv.monthlyRate;
     if (target) balances[target.id] -= resgate;
@@ -71,7 +74,7 @@ export function computeCashflow(
       resgate,
       saldo2,
       renda,
-      empresa,
+      retiradas,
       extra,
       saldoFinal,
       investimentos: { ...balances },

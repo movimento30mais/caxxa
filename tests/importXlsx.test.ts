@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { importCashflowXlsx } from "../server/importXlsx";
 import { computeCashflow, plannedByCategory } from "../src/lib/cashflow";
+import { companyBase, computeCompany } from "../src/lib/company";
 
 /** Monta uma planilha no layout da aba "Fluxo de Caixa (2)" (coluna Base e meses fora de ordem, como na original). */
 async function sampleWorkbook() {
@@ -39,8 +40,14 @@ describe("importCashflowXlsx", () => {
     expect(byName["Cartão Itau"].group).toBe("pessoal");
     expect(byName["Cartão Itau"].values).toEqual({ "2026-11": -5000, "2026-12": -2000, "2027-01": -2000 });
     expect(byName["13º salário"].values).toEqual({ "2026-12": 8000 });
-    expect(byName["Impostos PJ"].group).toBe("empresa");
-    expect(byName["Contabilidade"].group).toBe("empresa");
+    // A PJ vai para o fluxo da empresa: Salário → Faturamento, despesas PJ → despesas.
+    const pj = Object.fromEntries(r.company.lines.map((l) => [l.name, l]));
+    expect(pj["Faturamento"]).toMatchObject({ group: "faturamento", values: { "2026-11": 10000 } });
+    expect(pj["Impostos PJ"].group).toBe("despesa");
+    expect(pj["Contabilidade"].group).toBe("despesa");
+    expect(pj["Lucro distribuído"].auto).toBe(true);
+    expect(byName["Impostos PJ"]).toBeUndefined();
+    expect(byName["Salário"]).toBeUndefined();
     expect(byName["DESPESAS EMPRESA"]).toBeUndefined();
     expect(r.investments.map((i) => [i.name, i.kind, i.sweepTarget])).toEqual([
       ["Nubank", "investimento", true],
@@ -48,7 +55,8 @@ describe("importCashflowXlsx", () => {
     ]);
     expect(r.investments[0].balance).toBeCloseTo(1000 / 1.005, 1);
 
-    const [nov, dez] = computeCashflow(r.settings, r.lines, r.investments);
+    const pjFlow = computeCompany(r.settings, r.company);
+    const [nov, dez] = computeCashflow(r.settings, r.lines, r.investments, Object.fromEntries(pjFlow.map((c) => [c.month, c.retiradas])));
     expect(nov.saldo1).toBe(1000 - 5000 - 1000);
     expect(nov.saldoFinal).toBe(10000 - 600);
     expect(dez.saldoFinal).toBe(10000 - 600 + 8000);
@@ -57,16 +65,16 @@ describe("importCashflowXlsx", () => {
   it("lê a coluna Base como orçamento mensal", async () => {
     const r = await importCashflowXlsx(await sampleWorkbook());
     const byName = Object.fromEntries(r.lines.map((l) => [l.name, l]));
+    const pj = Object.fromEntries(r.company.lines.map((l) => [l.name, l]));
     expect(byName["Cartão Itau"].base).toBe(-2000);
     expect(byName["Condomínio"].base).toBe(-1200);
-    expect(byName["Impostos PJ"].base).toBe(-550);
+    expect(pj["Impostos PJ"].base).toBe(-550);
     expect(byName["13º salário"].base).toBe(0); // zero explícito na planilha
     expect(r.lines.find((l) => l.name === "Nubank")).toBeUndefined();
-    // O "Salário" só com Base no bloco de despesas vira a Base da linha de receita de mesmo nome.
-    const salarios = r.lines.filter((l) => l.name === "Salário");
-    expect(salarios).toHaveLength(1);
-    expect(salarios[0]).toMatchObject({ group: "renda", base: 9600, values: { "2026-11": 10000 } });
+    // O "Salário" só com Base no bloco de despesas vira a Base do faturamento da empresa.
+    expect(pj["Faturamento"]).toMatchObject({ base: 9600, values: { "2026-11": 10000 } });
+    expect(companyBase(r.company).retiradas).toBe(9600 - 550 - 100);
     // O orçamento usa a Base, não o valor projetado do mês (nov tem −5.000 no cartão).
-    expect(plannedByCategory(r.lines, "2026-11")).toMatchObject({ Cartões: 2000, Moradia: 1200, Impostos: 650 });
+    expect(plannedByCategory(r.lines, "2026-11")).toEqual({ Cartões: 2000, Moradia: 1200 });
   });
 });

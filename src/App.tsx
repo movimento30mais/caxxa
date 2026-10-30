@@ -4,6 +4,7 @@ import { api, type ServerStatus } from "./lib/api";
 import { useStore } from "./lib/store";
 import Dashboard from "./pages/Dashboard";
 import Cashflow from "./pages/Cashflow";
+import Company from "./pages/Company";
 import Transactions from "./pages/Transactions";
 import Goals from "./pages/Goals";
 import Bills, { useBillNotifications } from "./pages/Bills";
@@ -12,7 +13,8 @@ import Assistant from "./pages/Assistant";
 
 const PAGES = [
   { id: "painel", label: "Painel", icon: "◧" },
-  { id: "fluxo", label: "Fluxo de caixa", icon: "▦" },
+  { id: "fluxo", label: "Fluxo pessoal", icon: "▦" },
+  { id: "empresa", label: "Empresa", icon: "▣" },
   { id: "lancamentos", label: "Lançamentos", icon: "≡" },
   { id: "metas", label: "Metas", icon: "◎" },
   { id: "contas", label: "Contas a pagar", icon: "◷" },
@@ -72,6 +74,7 @@ export default function App() {
       <main className="main">
         {page === "painel" && <Dashboard snap={snap} go={setPage} />}
         {page === "fluxo" && <Cashflow snap={snap} />}
+        {page === "empresa" && <Company snap={snap} />}
         {page === "lancamentos" && <Transactions snap={snap} />}
         {page === "metas" && <Goals snap={snap} />}
         {page === "contas" && <Bills snap={snap} />}

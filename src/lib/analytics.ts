@@ -1,4 +1,5 @@
 import { computeCashflow, plannedByCategory, type MonthResult } from "./cashflow";
+import { computeCompany, type CompanyMonth } from "./company";
 import { addMonths, currentMonth, fmt0, monthLabel, monthOf } from "./months";
 import type { AppState, Bill, Goal, MonthKey, Transaction } from "./types";
 
@@ -116,6 +117,7 @@ export interface Insight {
 export interface Snapshot {
   month: MonthKey;
   flow: MonthResult[];
+  company: CompanyMonth[];
   history: MonthTotals[];
   forecast: CategoryForecast[];
   planned: Record<string, number>;
@@ -125,11 +127,13 @@ export interface Snapshot {
 
 export function snapshot(state: AppState, now = new Date()): Snapshot {
   const month = currentMonth(now);
-  const flow = computeCashflow(state.settings, state.lines, state.investments);
+  const company = computeCompany(state.settings, state.company);
+  const flow = computeCashflow(state.settings, state.lines, state.investments, Object.fromEntries(company.map((c) => [c.month, c.retiradas])));
   const histMonths = historyMonths(state.transactions, addMonths(month, 1), 6);
   return {
     month,
     flow,
+    company,
     history: monthlyTotals(state.transactions, histMonths),
     forecast: forecastSpending(state.transactions, addMonths(month, 1)),
     planned: plannedByCategory(state.lines, month),
@@ -208,7 +212,7 @@ export function localInsights(state: AppState, snap: Snapshot): Insight[] {
   }
 
   // 6. Reserva de emergência.
-  const despesaMensal = flow.length ? -(flow[0].pessoal + flow[0].empresa) : 0;
+  const despesaMensal = flow.length ? -flow[0].pessoal : 0;
   const reserva = state.investments.filter((i) => i.sweepTarget).reduce((a, i) => a + i.balance, 0);
   if (despesaMensal > 0) {
     const meses = reserva / despesaMensal;
@@ -233,10 +237,17 @@ export function aiPayload(state: AppState, snap: Snapshot) {
       despesasPessoais: Math.round(m.pessoal),
       saldo1: Math.round(m.saldo1),
       renda: Math.round(m.renda),
-      despesasEmpresa: Math.round(m.empresa),
+      retiradasDaEmpresa: Math.round(m.retiradas),
       saldoFinal: Math.round(m.saldoFinal),
       totalInvestido: Math.round(m.totalInvestido),
       previdencia: Math.round(m.previdencia),
+    })),
+    empresa: snap.company.map((c) => ({
+      mes: c.month,
+      faturamento: Math.round(c.faturamento),
+      despesas: Math.round(c.despesas),
+      retiradas: Math.round(c.retiradas),
+      saldoCaixaPJ: Math.round(c.saldoFinal),
     })),
     historicoMensal: snap.history.map((h) => ({ mes: h.month, receitas: Math.round(h.receitas), despesas: Math.round(h.despesas) })),
     gastosPorCategoriaUltimosMeses: historyMonths(state.transactions, addMonths(snap.month, 1), 4).map((m) => ({

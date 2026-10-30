@@ -2,23 +2,44 @@
 export type MonthKey = string;
 
 /**
- * Grupos de linhas do fluxo de caixa, espelhando os blocos da planilha:
+ * Grupos de linhas do fluxo pessoal, espelhando os blocos da planilha:
  * - pessoal: despesas do mês (Cartões, Condomínio, Carro...) — somadas ao Saldo Inicial para formar o "Saldo 1"
- * - renda:   entradas que chegam no fim do mês (Salário, Férias, 13º)
- * - empresa: despesas da PJ (Impostos, INSS, Contabilidade)
+ * - renda:   entradas pessoais que chegam no fim do mês (13º, férias, aluguéis). As retiradas da empresa entram
+ *            automaticamente, vindas do fluxo da empresa.
  * - extra:   outros lançamentos após o resgate (ex.: "AP novo")
  */
-export type LineGroup = "pessoal" | "renda" | "empresa" | "extra";
+export type LineGroup = "pessoal" | "renda" | "extra";
 
-export interface FlowLine {
+/**
+ * Grupos do fluxo da empresa:
+ * - faturamento: receitas da PJ
+ * - despesa:     impostos, INSS, contabilidade… (podem ser % do faturamento)
+ * - retirada:    pró-labore e lucro distribuído — viram receita no fluxo pessoal
+ */
+export type CompanyGroup = "faturamento" | "despesa" | "retirada";
+
+export interface FlowLine<G extends string = LineGroup> {
   id: string;
   name: string;
   category: string;
-  group: LineGroup;
-  /** Valor com sinal (negativo = saída) por mês. */
+  group: G;
+  /** Valor por mês. Pessoal e despesas da empresa: negativo = saída. Retiradas: valor retirado (positivo). */
   values: Record<MonthKey, number>;
-  /** Coluna "Base" da planilha: orçamento mensal da linha, com sinal. */
+  /** Coluna "Base" da planilha: orçamento mensal da linha, com o mesmo sinal dos valores. */
   base?: number;
+  /** Despesa da empresa calculada como fração do faturamento do mês (0.06 = 6%). */
+  pctFaturamento?: number;
+  /** Retirada que distribui automaticamente o resultado do mês (faturamento − despesas − demais retiradas). */
+  auto?: boolean;
+}
+
+export type CompanyLine = FlowLine<CompanyGroup>;
+
+export interface CompanyState {
+  name: string;
+  /** Saldo em caixa da PJ no início do primeiro mês. */
+  openingBalance: number;
+  lines: CompanyLine[];
 }
 
 export interface Investment {
@@ -84,6 +105,7 @@ export interface AppState {
   version: 1;
   settings: CashflowSettings;
   lines: FlowLine[];
+  company: CompanyState;
   investments: Investment[];
   transactions: Transaction[];
   goals: Goal[];

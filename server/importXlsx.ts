@@ -1,11 +1,13 @@
 import ExcelJS from "exceljs";
 import { guessCategory } from "../src/lib/categories";
-import type { CashflowSettings, FlowLine, Investment, LineGroup } from "../src/lib/types";
+import { splitCompany, type LegacyLine } from "../src/lib/migrate";
+import type { CashflowSettings, CompanyState, FlowLine, Investment } from "../src/lib/types";
 
 export interface ImportResult {
   sheet: string;
   settings: CashflowSettings;
   lines: FlowLine[];
+  company: CompanyState;
   investments: Investment[];
 }
 
@@ -40,7 +42,7 @@ const cents = (v: number) => Math.round(v * 100) / 100;
 /**
  * Lê uma planilha no formato da aba "Fluxo de Caixa (2)":
  * linha 1 com os meses, blocos "Saldo Inicial" → "Saldo 1" (despesas pessoais),
- * "Saldo 2" → "Saldo final" (salário, despesas da empresa, extras) e,
+ * "Saldo 2" → "Saldo final" (salário, despesas da empresa, extras — separados no fluxo da empresa) e,
  * abaixo, os investimentos até "TT INVESTIMENTO" e a "Previdência".
  */
 export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "Fluxo de Caixa (2)"): Promise<ImportResult> {
@@ -94,13 +96,13 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
     return v === null ? undefined : cents(v);
   };
 
-  const makeLine = (r: number, group: LineGroup): FlowLine | null => {
+  const makeLine = (r: number, group: LegacyLine["group"]): LegacyLine | null => {
     const name = ws.getCell(r, 1).text.trim();
     const values = rowValues(r);
     const base = baseOf(r);
     if (!name || (!Object.keys(values).length && !base)) return null;
     const sample = base ?? Object.values(values)[0];
-    const line: FlowLine = { id: id("l"), name, group, category: group === "renda" ? "Renda" : group === "empresa" ? "Impostos" : guessCategory(name, sample), values };
+    const line: LegacyLine = { id: id("l"), name, group, category: group === "renda" ? "Renda" : group === "empresa" ? "Impostos" : guessCategory(name, sample), values };
     if (base !== undefined) line.base = base;
     return line;
   };
@@ -110,9 +112,9 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
   const rSaldo2 = labelRow["saldo 2"] ?? rSaldo1 + 2;
   const rFinal = need("saldo final");
 
-  const lines: FlowLine[] = [];
+  const lines: LegacyLine[] = [];
   // Linha positiva só com Base no bloco de despesas (ex.: "Salário" = 40.000 − 784,41) é a receita orçada.
-  const incomeBases: FlowLine[] = [];
+  const incomeBases: LegacyLine[] = [];
   for (let r = rInicial + 1; r < rSaldo1; r++) {
     const l = makeLine(r, "pessoal");
     if (!l) continue;
@@ -142,7 +144,7 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
   }
 
   // "DESPESAS EMPRESA" aponta para um subtotal (ex.: =C42) que soma as linhas da PJ (=SUM(C43:C45)).
-  function companyLines(r: number): FlowLine[] {
+  function companyLines(r: number): LegacyLine[] {
     for (const { col } of cols) {
       const ref = /^=?\$?[A-Z]+\$?(\d+)$/.exec(formulaOf(ws!.getCell(r, col)));
       if (!ref) continue;
@@ -150,7 +152,7 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
       for (const { col: c2 } of cols) {
         const sum = /SUM\(\$?[A-Z]+\$?(\d+):\$?[A-Z]+\$?(\d+)\)/i.exec(formulaOf(ws!.getCell(sub, c2)));
         if (sum) {
-          const out: FlowLine[] = [];
+          const out: LegacyLine[] = [];
           for (let k = Number(sum[1]); k <= Number(sum[2]); k++) {
             const l = makeLine(k, "empresa");
             if (l) out.push(l);
@@ -191,10 +193,13 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
 
   const opening = num(ws.getCell(rInicial, cols[0].col).value) ?? 0;
   const resgateRow = labelRow["resgate"];
+  // A planilha mistura a PJ no fluxo pessoal; o app separa: "Salário" vira o faturamento e as despesas PJ vão para a empresa.
+  const split = splitCompany(lines);
   return {
     sheet: ws.name,
     settings: { startMonth: cols[0].month, months: cols.length, openingBalance: cents(opening), sweep: Boolean(resgateRow) },
-    lines,
+    lines: split.lines,
+    company: split.company,
     investments,
   };
 }

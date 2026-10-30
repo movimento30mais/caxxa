@@ -8,28 +8,37 @@ planejamento mensal, registro e categorização de despesas, metas, alertas de v
 | Tela | O que faz |
 |---|---|
 | **Painel** | Gastos do mês x planejado, sobra do mês (Saldo 1), patrimônio projetado, despesas por categoria, receitas x despesas, vencimentos e metas. |
-| **Fluxo de caixa** | Grade mês a mês editável no mesmo modelo da planilha (ver abaixo), com a coluna **Base** — o orçamento mensal de cada linha, usado nas comparações realizado x orçamento. Aceita valores como `1.234,56` ou fórmulas simples (`=-2337,5-780`, `-400*4`). **Importa a planilha .xlsx** diretamente. |
+| **Fluxo pessoal** | Grade mês a mês editável no mesmo modelo da planilha (ver abaixo), com a coluna **Base** — o orçamento mensal de cada linha, usado nas comparações realizado x orçamento. Aceita valores como `1.234,56` ou fórmulas simples (`=-2337,5-780`, `-400*4`). **Importa a planilha .xlsx** diretamente. |
+| **Empresa** | Fluxo de caixa da PJ: faturamento, despesas (fixas ou % do faturamento, ex.: Simples/impostos) e retiradas. Pró-labore e lucro retirados entram **automaticamente como receita no fluxo pessoal**; a retirada marcada como *auto* distribui o resultado que sobrar no mês. |
 | **Lançamentos** | Registro de receitas e despesas com categoria sugerida automaticamente, filtros e orçamento do mês (realizado x fluxo de caixa). |
 | **Metas** | Objetivos com valor, prazo, aporte mensal necessário e comparação com a sobra projetada. |
 | **Contas a pagar** | Contas recorrentes com status (atrasada, vence hoje, em breve, paga) e notificações do navegador. |
 | **Open Finance** | Conexão com bancos via agregador [Pluggy](https://pluggy.ai); transações importadas sem duplicar e categorizadas. Sem credenciais, roda em modo sandbox com dados simulados. |
 | **Assistente IA** | Previsão de gastos do próximo mês por categoria e recomendações. Com `ANTHROPIC_API_KEY`, usa o Claude para análise personalizada e responde perguntas; sem a chave, usa as regras locais. |
 
-### Modelo do fluxo de caixa (igual à planilha)
+### Modelo do fluxo de caixa
 
 ```
+EMPRESA
+Resultado    = Faturamento − Despesas (fixas ou % do faturamento)
+Retiradas    = Pró-labore + Lucro (a linha "auto" distribui o resultado que sobrar)
+Caixa PJ     = Caixa inicial + Resultado − Retiradas
+
+PESSOAL (igual à planilha)
 Saldo 1      = Saldo inicial + Σ despesas pessoais (cartões, condomínio, carro…)
 Resgate      = −Saldo 1            → a sobra é aplicada / o déficit é resgatado dos investimentos
 Saldo 2      = Saldo 1 + Resgate   (= 0 com resgate automático)
-Saldo final  = Saldo 2 + Salário + Despesas da empresa (PJ) + 13º/férias + extras
+Saldo final  = Saldo 2 + Retiradas da empresa + receitas pessoais (13º, férias…) + extras
 Próximo mês  : Saldo inicial = Saldo final
 Investimentos: saldo × (1 + taxa mensal) ± Saldo 1 na conta marcada com ⇄; Previdência à parte
 ```
 
-A importação lê a linha 1 (meses, mesmo fora de ordem), os blocos `Saldo Inicial → Saldo 1` e `Saldo 2 → Saldo final`,
+A importação lê a coluna Base e a linha 1 (meses, mesmo fora de ordem), os blocos `Saldo Inicial → Saldo 1` e `Saldo 2 → Saldo final`,
 segue a fórmula de `DESPESAS EMPRESA` até as linhas da PJ (`Impostos PJ`, `INSS`, `Contabilidade`), e lê os investimentos
 até `TT INVESTIMENTO` e a `Previdência` (a taxa é extraída de fórmulas como `*(1+0.5%)`).
-Com a planilha original, os saldos calculados pelo app batem com os do Excel (ex.: saldo final de R$ 71.782,06 em dez/26).
+Como a planilha mistura a PJ no fluxo pessoal, o app separa: o **"Salário" vira o faturamento da empresa**, as despesas PJ vão
+para a empresa e o lucro automático devolve ao pessoal Salário − despesas PJ. Os saldos pessoais continuam batendo com os do
+Excel (ex.: saldo final de R$ 71.782,06 em dez/26). Dados salvos antes dessa separação são migrados do mesmo jeito.
 
 ## Como rodar
 
