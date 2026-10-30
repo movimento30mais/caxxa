@@ -8,7 +8,7 @@ planejamento mensal, registro e categorização de despesas, metas, alertas de v
 | Tela | O que faz |
 |---|---|
 | **Painel** | Gastos do mês x planejado, sobra do mês (Saldo 1), patrimônio projetado, despesas por categoria, receitas x despesas, vencimentos e metas. |
-| **Fluxo de caixa** | Grade mês a mês editável no mesmo modelo da planilha (ver abaixo). Aceita valores como `1.234,56` ou fórmulas simples (`=-2337,5-780`, `-400*4`). **Importa a planilha .xlsx** diretamente. |
+| **Fluxo de caixa** | Grade mês a mês editável no mesmo modelo da planilha (ver abaixo), com a coluna **Base** — o orçamento mensal de cada linha, usado nas comparações realizado x orçamento. Aceita valores como `1.234,56` ou fórmulas simples (`=-2337,5-780`, `-400*4`). **Importa a planilha .xlsx** diretamente. |
 | **Lançamentos** | Registro de receitas e despesas com categoria sugerida automaticamente, filtros e orçamento do mês (realizado x fluxo de caixa). |
 | **Metas** | Objetivos com valor, prazo, aporte mensal necessário e comparação com a sobra projetada. |
 | **Contas a pagar** | Contas recorrentes com status (atrasada, vence hoje, em breve, paga) e notificações do navegador. |

@@ -62,6 +62,11 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
   });
   if (!cols.length) throw new Error("A linha 1 precisa conter os meses como datas.");
   cols.sort((a, b) => a.month.localeCompare(b.month));
+  // Coluna "Base" (orçamento mensal de cada linha), normalmente a B.
+  let baseCol: number | null = null;
+  ws.getRow(1).eachCell((cell, col) => {
+    if (norm(cell.text) === "base") baseCol = col;
+  });
 
   const labelRow: Record<string, number> = {};
   const lastRow = ws.rowCount;
@@ -83,12 +88,21 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
     return values;
   };
 
+  const baseOf = (r: number) => {
+    // Base 0 é orçamento zero; célula vazia é "sem Base".
+    const v = baseCol === null ? null : num(ws.getCell(r, baseCol).value);
+    return v === null ? undefined : cents(v);
+  };
+
   const makeLine = (r: number, group: LineGroup): FlowLine | null => {
     const name = ws.getCell(r, 1).text.trim();
     const values = rowValues(r);
-    if (!name || !Object.keys(values).length) return null;
-    const sample = Object.values(values)[0];
-    return { id: id("l"), name, group, category: group === "renda" ? "Renda" : group === "empresa" ? "Impostos" : guessCategory(name, sample), values };
+    const base = baseOf(r);
+    if (!name || (!Object.keys(values).length && !base)) return null;
+    const sample = base ?? Object.values(values)[0];
+    const line: FlowLine = { id: id("l"), name, group, category: group === "renda" ? "Renda" : group === "empresa" ? "Impostos" : guessCategory(name, sample), values };
+    if (base !== undefined) line.base = base;
+    return line;
   };
 
   const rInicial = need("saldo inicial");
@@ -97,9 +111,13 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
   const rFinal = need("saldo final");
 
   const lines: FlowLine[] = [];
+  // Linha positiva só com Base no bloco de despesas (ex.: "Salário" = 40.000 − 784,41) é a receita orçada.
+  const incomeBases: FlowLine[] = [];
   for (let r = rInicial + 1; r < rSaldo1; r++) {
     const l = makeLine(r, "pessoal");
-    if (l) lines.push(l);
+    if (!l) continue;
+    if (!Object.keys(l.values).length && (l.base ?? 0) > 0) incomeBases.push(l);
+    else lines.push(l);
   }
 
   for (let r = rSaldo2 + 1; r < rFinal; r++) {
@@ -110,11 +128,17 @@ export async function importCashflowXlsx(buffer: ArrayBuffer, preferredSheet = "
     }
     const l = makeLine(r, "extra");
     if (!l) continue;
-    if (Object.values(l.values).some((v) => v > 0)) {
+    if (Object.values(l.values).some((v) => v > 0) || (l.base ?? 0) > 0) {
       l.group = "renda";
       l.category = "Renda";
     }
     lines.push(l);
+  }
+
+  for (const inc of incomeBases) {
+    const twin = lines.find((l) => l.group === "renda" && norm(l.name) === norm(inc.name));
+    if (twin && !twin.base) twin.base = inc.base;
+    else lines.push({ ...inc, group: "renda", category: "Renda" });
   }
 
   // "DESPESAS EMPRESA" aponta para um subtotal (ex.: =C42) que soma as linhas da PJ (=SUM(C43:C45)).

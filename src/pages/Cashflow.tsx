@@ -12,6 +12,7 @@ import type { FlowLine, Investment, LineGroup } from "../lib/types";
 
 const num = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const show = (v: number | undefined) => (v ? num.format(v) : "");
+const showBase = (v: number | undefined) => (v === undefined ? "" : num.format(v));
 
 const SECTIONS: { group: LineGroup; title: string; hint: string }[] = [
   { group: "pessoal", title: "Despesas pessoais", hint: "digite valores positivos; entram como saída" },
@@ -36,16 +37,24 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
       investments: s.investments.map((i) => (i.id === id ? { ...i, ...patch } : patch.sweepTarget ? { ...i, sweepTarget: false } : i)),
     }));
 
+  /** Grava uma célula de mês ou, com month = "base", a coluna Base (orçamento mensal). */
   const commitCell = (line: FlowLine, month: string, raw: string, el: HTMLInputElement) => {
+    const isBase = month === "base";
+    const current = isBase ? line.base : line.values[month];
     const parsed = parseAmount(raw);
     if (parsed === null) {
-      el.value = show(line.values[month]);
+      el.value = isBase ? showBase(current) : show(current);
       return;
     }
-    const v = line.group === "pessoal" || line.group === "empresa" ? -Math.abs(parsed) : parsed;
-    el.value = show(v);
-    if ((line.values[month] ?? 0) === v) return;
+    // Base vazia = sem orçamento; Base 0 = orçamento zero.
+    const v = isBase && !raw.trim() ? undefined : line.group === "pessoal" || line.group === "empresa" ? -Math.abs(parsed) : parsed;
+    el.value = isBase ? showBase(v) : show(v);
+    if (isBase ? current === v : (current ?? 0) === v) return;
     setLine(line.id, (l) => {
+      if (isBase) {
+        const { base: _, ...rest } = l;
+        return v === undefined ? rest : { ...rest, base: v };
+      }
       const values = { ...l.values };
       if (v) values[month] = v;
       else delete values[month];
@@ -53,14 +62,17 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     });
   };
 
-  const fillRight = (line: FlowLine, from: string) => {
-    const v = line.values[from] ?? 0;
+  /** Repete a Base (ou, sem Base, o valor do 1º mês) em todos os meses. */
+  const fillRight = (line: FlowLine) => {
+    const v = line.base ?? line.values[months[0]] ?? 0;
     setLine(line.id, (l) => {
       const values = { ...l.values };
-      for (const m of months) if (m >= from) v ? (values[m] = v) : delete values[m];
+      for (const m of months) v ? (values[m] = v) : delete values[m];
       return { ...l, values };
     });
   };
+
+  const baseSum = (...groups: LineGroup[]) => lines.reduce((a, l) => (groups.includes(l.group) ? a + (l.base ?? 0) : a), 0);
 
   const addLine = (group: LineGroup) =>
     update((s) => ({
@@ -83,9 +95,10 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     }
   }
 
-  const calcRow = (label: ReactNode, values: number[], cls = "calc") => (
+  const calcRow = (label: ReactNode, values: number[], cls = "calc", base?: number) => (
     <tr className={cls}>
       <td className="name">{label}</td>
+      <td className={`base ${base !== undefined && base < 0 ? "neg" : ""}`}>{base !== undefined ? num.format(base) : ""}</td>
       {values.map((v, i) => (
         <td key={i} className={v < 0 ? "neg" : undefined}>
           {num.format(v)}
@@ -110,7 +123,7 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
             ))}
           </select>
           <span className="line-actions">
-            <button className="btn ghost small" title="Repetir o valor do 1º mês em todos os meses" onClick={() => fillRight(l, months[0])}>
+            <button className="btn ghost small" title={l.base !== undefined ? "Aplicar a Base em todos os meses" : "Repetir o valor do 1º mês em todos os meses"} onClick={() => fillRight(l)}>
               ⇥
             </button>
             <button
@@ -122,6 +135,16 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
             </button>
           </span>
         </div>
+      </td>
+      <td className="base">
+        <input
+          key={`base:${l.base ?? ""}`}
+          className={`cell ${(l.base ?? 0) < 0 ? "neg" : ""}`}
+          defaultValue={showBase(l.base)}
+          aria-label={`${l.name} base (orçamento mensal)`}
+          onBlur={(e) => commitCell(l, "base", e.target.value, e.target)}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        />
       </td>
       {months.map((m) => (
         <td key={m}>
@@ -150,7 +173,7 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
               + linha
             </button>
           </td>
-          <td colSpan={months.length} style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
+          <td colSpan={months.length + 1} style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
             <span className="sub">{meta.hint}</span>
           </td>
         </tr>
@@ -240,6 +263,7 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
           <thead>
             <tr>
               <th className="name">Linha</th>
+              <th className="base" title="Orçamento mensal de cada linha (coluna Base da planilha)">Base</th>
               {months.map((m) => (
                 <th key={m}>{monthLabel(m)}</th>
               ))}
@@ -248,17 +272,17 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
           <tbody>
             {calcRow("Saldo inicial", flow.map((m) => m.saldoInicial), "total")}
             {section("pessoal")}
-            {calcRow("Saldo 1", flow.map((m) => m.saldo1), "total")}
+            {calcRow("Saldo 1", flow.map((m) => m.saldo1), "total", baseSum("pessoal", "renda"))}
             {settings.sweep && calcRow("Resgate (−aplicação / +resgate)", flow.map((m) => m.resgate))}
             {calcRow("Saldo 2", flow.map((m) => m.saldo2))}
             {section("renda")}
             {section("empresa")}
-            {calcRow("Total empresa", flow.map((m) => m.empresa))}
+            {calcRow("Total empresa", flow.map((m) => m.empresa), "calc", baseSum("empresa"))}
             {section("extra")}
-            {calcRow("Saldo final", flow.map((m) => m.saldoFinal), "total")}
+            {calcRow("Saldo final", flow.map((m) => m.saldoFinal), "total", baseSum("pessoal", "renda", "empresa", "extra"))}
             <tr className="section">
               <td className="name">Investimentos</td>
-              <td colSpan={months.length} />
+              <td colSpan={months.length + 1} />
             </tr>
             {invRows.map((i) => calcRow(`${i.name}${i.sweepTarget ? " ⇄" : ""}`, flow.map((m) => m.investimentos[i.id])))}
             {calcRow("Total investido", flow.map((m) => m.totalInvestido), "total")}

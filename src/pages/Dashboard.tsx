@@ -16,8 +16,8 @@ export default function Dashboard({ snap, go }: { snap: Snapshot; go: (p: PageId
   const pendingSoon = pending.filter((a) => a.daysLeft <= 7);
 
   const cats = [...new Set([...Object.keys(actual), ...Object.keys(planned)])]
-    .map((name) => ({ name, realizado: Math.round(actual[name] ?? 0), planejado: Math.round(planned[name] ?? 0) }))
-    .sort((a, b) => b.planejado + b.realizado - (a.planejado + a.realizado));
+    .map((name) => ({ name, realizado: Math.round(actual[name] ?? 0), orcamento: Math.round(planned[name] ?? 0) }))
+    .sort((a, b) => b.orcamento + b.realizado - (a.orcamento + a.realizado));
 
   const proj = flow.map((m) => ({ mes: monthLabel(m.month), Investimentos: Math.round(m.totalInvestido), Previdência: Math.round(m.previdencia) }));
   const hist = history.map((h) => ({ mes: monthLabel(h.month), Receitas: Math.round(h.receitas), Despesas: Math.round(h.despesas) }));
@@ -31,7 +31,7 @@ export default function Dashboard({ snap, go }: { snap: Snapshot; go: (p: PageId
           label={`Gastos em ${monthLabel(snap.month)}`}
           value={fmt0(gasto)}
           tone={plan && gasto > plan ? "neg" : undefined}
-          delta={plan ? `${Math.round((gasto / plan) * 100)}% do planejado (${fmt0(plan)})` : "sem orçamento no fluxo"}
+          delta={plan ? `${Math.round((gasto / plan) * 100)}% do orçamento (${fmt0(plan)})` : "sem orçamento na coluna Base"}
         />
         <Stat
           label="Sobra do mês (Saldo 1)"
@@ -56,13 +56,13 @@ export default function Dashboard({ snap, go }: { snap: Snapshot; go: (p: PageId
         <div className="card span2">
           <div className="card-head">
             <h2>Despesas por categoria</h2>
-            <span className="sub">{monthLabel(snap.month)} · realizado x planejado no fluxo</span>
+            <span className="sub">{monthLabel(snap.month)} · realizado x orçamento (Base)</span>
           </div>
           <CategoryBars
             data={cats}
             series={[
               { key: "realizado", label: "Realizado", color: "var(--series-1)" },
-              { key: "planejado", label: "Planejado", color: "var(--series-2)" },
+              { key: "orcamento", label: "Orçamento (Base)", color: "var(--series-2)" },
             ]}
           />
         </div>

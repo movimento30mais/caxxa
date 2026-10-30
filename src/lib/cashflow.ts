@@ -84,11 +84,16 @@ export function computeCashflow(
   });
 }
 
-/** Total planejado por categoria (somente saídas) em um mês. */
+/** Orçamento da linha no mês: a coluna Base quando preenchida, senão o valor projetado do mês. */
+export function budgetOf(line: FlowLine, month: MonthKey): number {
+  return line.base ?? line.values[month] ?? 0;
+}
+
+/** Orçamento por categoria (somente saídas) em um mês. */
 export function plannedByCategory(lines: FlowLine[], month: MonthKey): Record<string, number> {
   const out: Record<string, number> = {};
   for (const l of lines) {
-    const v = l.values[month] ?? 0;
+    const v = budgetOf(l, month);
     if (v < 0 && l.group !== "renda") out[l.category] = (out[l.category] ?? 0) + -v;
   }
   return out;

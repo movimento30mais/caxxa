@@ -48,6 +48,13 @@ export function demoState(now = new Date()): AppState {
     line("INSS", "Impostos", "empresa", months, -180),
     line("Contabilidade", "Impostos", "empresa", months, -420),
   ];
+  // Base (orçamento mensal) = valor mais frequente de cada linha, como na coluna B da planilha.
+  for (const l of lines) {
+    const freq = new Map<number, number>();
+    for (const v of Object.values(l.values)) freq.set(v, (freq.get(v) ?? 0) + 1);
+    const top = [...freq].sort((a, b) => b[1] - a[1])[0];
+    if (top && top[1] > 1) l.base = top[0];
+  }
 
   return {
     version: 1,

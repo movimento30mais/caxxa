@@ -155,13 +155,13 @@ export function localInsights(state: AppState, snap: Snapshot): Insight[] {
     }
   }
 
-  // 2. Previsão acima do planejado no fluxo de caixa.
+  // 2. Previsão acima do orçamento (coluna Base).
   for (const f of forecast) {
     const p = planned[f.category];
     if (p && f.previsto > p * 1.1) {
       out.push({
         titulo: `${f.category}: previsão acima do orçamento`,
-        detalhe: `Previsto ${fmt0(f.previsto)} contra ${fmt0(p)} planejado no fluxo de caixa (${Math.round((f.previsto / p - 1) * 100)}% acima).`,
+        detalhe: `Previsto ${fmt0(f.previsto)} contra ${fmt0(p)} de orçamento na Base (${Math.round((f.previsto / p - 1) * 100)}% acima).`,
         prioridade: "media",
         impactoMensal: f.previsto - p,
       });
@@ -243,7 +243,7 @@ export function aiPayload(state: AppState, snap: Snapshot) {
       mes: m,
       categorias: Object.fromEntries(Object.entries(spendingByCategory(state.transactions, m)).map(([k, v]) => [k, Math.round(v)])),
     })),
-    orcamentoPlanejadoMesAtual: Object.fromEntries(Object.entries(snap.planned).map(([k, v]) => [k, Math.round(v)])),
+    orcamentoMensalBase: Object.fromEntries(Object.entries(snap.planned).map(([k, v]) => [k, Math.round(v)])),
     previsaoLocal: snap.forecast.map((f) => ({ categoria: f.category, previsto: Math.round(f.previsto), tendenciaMensal: Math.round(f.tendencia) })),
     metas: state.goals.map((g) => ({ nome: g.name, alvo: g.target, guardado: g.saved, prazo: g.deadline, aporteMensalNecessario: Math.round(goalMonthly(g, snap.month)) })),
     contasAVencer: snap.alerts.filter((a) => a.status !== "paga").map((a) => ({ nome: a.bill.name, valor: a.bill.amount, diasParaVencer: a.daysLeft })),

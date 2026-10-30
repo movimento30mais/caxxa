@@ -153,7 +153,7 @@ export default function Transactions({ snap }: { snap: Snapshot }) {
         <div className="card">
           <div className="card-head">
             <h2>Orçamento do mês</h2>
-            <span className="sub">orçamento = fluxo de caixa</span>
+            <span className="sub">orçamento = coluna Base</span>
           </div>
           <CategoryBars
             data={budget}

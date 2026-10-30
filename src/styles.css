@@ -162,6 +162,8 @@ table.flow input.cell:focus { border-color: var(--accent); background: var(--sur
 table.flow input.name-input { width: 150px; border: 1px solid transparent; background: transparent; padding: 3px 4px; border-radius: 6px; font-weight: 500; }
 table.flow input.name-input:focus { border-color: var(--accent); outline: none; }
 table.flow select.cat { font-size: 11px; padding: 1px 4px; border-radius: 6px; color: var(--muted); }
+table.flow .base { background: var(--surface-2); border-right: 2px solid var(--border); }
+table.flow thead th.base { color: var(--text); }
 .line-actions { opacity: 0; display: inline-flex; gap: 2px; }
 tr:hover .line-actions, .line-actions:focus-within { opacity: 1; }
 

@@ -17,6 +17,8 @@ export interface FlowLine {
   group: LineGroup;
   /** Valor com sinal (negativo = saída) por mês. */
   values: Record<MonthKey, number>;
+  /** Coluna "Base" da planilha: orçamento mensal da linha, com sinal. */
+  base?: number;
 }
 
 export interface Investment {
