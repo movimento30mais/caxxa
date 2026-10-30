@@ -1,0 +1,91 @@
+# caxxa.
+
+Aplicativo de controle financeiro pessoal construído a partir da aba **"Fluxo de Caixa (2)"** da planilha de fluxo de caixa:
+planejamento mensal, registro e categorização de despesas, metas, alertas de vencimento, Open Finance e recomendações por IA.
+
+## Funcionalidades
+
+| Tela | O que faz |
+|---|---|
+| **Painel** | Gastos do mês x planejado, sobra do mês (Saldo 1), patrimônio projetado, despesas por categoria, receitas x despesas, vencimentos e metas. |
+| **Fluxo de caixa** | Grade mês a mês editável no mesmo modelo da planilha (ver abaixo). Aceita valores como `1.234,56` ou fórmulas simples (`=-2337,5-780`, `-400*4`). **Importa a planilha .xlsx** diretamente. |
+| **Lançamentos** | Registro de receitas e despesas com categoria sugerida automaticamente, filtros e orçamento do mês (realizado x fluxo de caixa). |
+| **Metas** | Objetivos com valor, prazo, aporte mensal necessário e comparação com a sobra projetada. |
+| **Contas a pagar** | Contas recorrentes com status (atrasada, vence hoje, em breve, paga) e notificações do navegador. |
+| **Open Finance** | Conexão com bancos via agregador [Pluggy](https://pluggy.ai); transações importadas sem duplicar e categorizadas. Sem credenciais, roda em modo sandbox com dados simulados. |
+| **Assistente IA** | Previsão de gastos do próximo mês por categoria e recomendações. Com `ANTHROPIC_API_KEY`, usa o Claude para análise personalizada e responde perguntas; sem a chave, usa as regras locais. |
+
+### Modelo do fluxo de caixa (igual à planilha)
+
+```
+Saldo 1      = Saldo inicial + Σ despesas pessoais (cartões, condomínio, carro…)
+Resgate      = −Saldo 1            → a sobra é aplicada / o déficit é resgatado dos investimentos
+Saldo 2      = Saldo 1 + Resgate   (= 0 com resgate automático)
+Saldo final  = Saldo 2 + Salário + Despesas da empresa (PJ) + 13º/férias + extras
+Próximo mês  : Saldo inicial = Saldo final
+Investimentos: saldo × (1 + taxa mensal) ± Saldo 1 na conta marcada com ⇄; Previdência à parte
+```
+
+A importação lê a linha 1 (meses, mesmo fora de ordem), os blocos `Saldo Inicial → Saldo 1` e `Saldo 2 → Saldo final`,
+segue a fórmula de `DESPESAS EMPRESA` até as linhas da PJ (`Impostos PJ`, `INSS`, `Contabilidade`), e lê os investimentos
+até `TT INVESTIMENTO` e a `Previdência` (a taxa é extraída de fórmulas como `*(1+0.5%)`).
+Com a planilha original, os saldos calculados pelo app batem com os do Excel (ex.: saldo final de R$ 71.782,06 em dez/26).
+
+## Como rodar
+
+Requer Node 20+.
+
+```bash
+npm install
+```
+
+```bash
+cp .env.example .env   # opcional: chaves da IA e do Open Finance
+```
+
+```bash
+npm run dev            # front em http://localhost:5173, API em :8787
+```
+
+Produção (o servidor entrega o front compilado):
+
+```bash
+npm run build && npm start
+```
+
+Testes:
+
+```bash
+npm test
+```
+
+## Configuração
+
+| Variável | Uso |
+|---|---|
+| `ANTHROPIC_API_KEY` | Ativa as recomendações do Claude (`claude-opus-5-5`, saída estruturada validada com Zod). Só totais agregados são enviados — nunca descrições de lançamentos. |
+| `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Ativa o Open Finance real. Autorize a conta no Pluggy Connect e cole o *Item ID* na tela Open Finance. |
+| `PORT` | Porta da API (padrão 8787). |
+
+O servidor lê o arquivo `.env` na raiz automaticamente, se existir.
+
+## Arquitetura
+
+```
+src/lib/cashflow.ts   motor do fluxo de caixa (lógica da planilha)
+src/lib/analytics.ts  previsão de gastos, alertas, metas, recomendações locais, resumo para a IA
+src/lib/store.tsx     estado do app, salvo no localStorage do navegador
+src/pages/*           telas
+server/importXlsx.ts  leitura da planilha .xlsx (exceljs)
+server/ai.ts          recomendações via Claude (Anthropic SDK)
+server/openfinance.ts Pluggy / sandbox
+```
+
+Os dados ficam no navegador (localStorage). O servidor é sem estado: só repassa chamadas para a IA e o agregador
+e lê a planilha enviada — o arquivo não é gravado.
+
+### Próximos passos sugeridos
+
+- Embutir o widget Pluggy Connect para o usuário autorizar o banco sem sair do app.
+- Persistência no servidor com login, para sincronizar entre dispositivos.
+- Notificações push/e-mail de vencimento mesmo com o app fechado.

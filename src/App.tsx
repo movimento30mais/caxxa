@@ -1,0 +1,83 @@
+import { useEffect, useMemo, useState } from "react";
+import { snapshot } from "./lib/analytics";
+import { api, type ServerStatus } from "./lib/api";
+import { useStore } from "./lib/store";
+import Dashboard from "./pages/Dashboard";
+import Cashflow from "./pages/Cashflow";
+import Transactions from "./pages/Transactions";
+import Goals from "./pages/Goals";
+import Bills, { useBillNotifications } from "./pages/Bills";
+import OpenFinance from "./pages/OpenFinance";
+import Assistant from "./pages/Assistant";
+
+const PAGES = [
+  { id: "painel", label: "Painel", icon: "◧" },
+  { id: "fluxo", label: "Fluxo de caixa", icon: "▦" },
+  { id: "lancamentos", label: "Lançamentos", icon: "≡" },
+  { id: "metas", label: "Metas", icon: "◎" },
+  { id: "contas", label: "Contas a pagar", icon: "◷" },
+  { id: "openfinance", label: "Open Finance", icon: "⇄" },
+  { id: "ia", label: "Assistente IA", icon: "✦" },
+] as const;
+export type PageId = (typeof PAGES)[number]["id"];
+
+export default function App() {
+  const { state } = useStore();
+  const [page, setPage] = useState<PageId>(() => (location.hash.slice(1) as PageId) || "painel");
+  const [status, setStatus] = useState<ServerStatus | null>(null);
+  const snap = useMemo(() => snapshot(state), [state]);
+  useBillNotifications(snap.alerts);
+  const pendingBills = snap.alerts.filter((a) => a.status === "atrasada" || a.status === "vence-hoje" || a.status === "proxima").length;
+
+  useEffect(() => {
+    api.status().then(setStatus, () => setStatus(null));
+  }, []);
+  useEffect(() => {
+    if (location.hash.slice(1) !== page) history.pushState(null, "", `#${page}`);
+    window.scrollTo(0, 0);
+  }, [page]);
+  useEffect(() => {
+    const onHash = () => setPage((location.hash.slice(1) as PageId) || "painel");
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
+    };
+  }, []);
+
+  const nav = (cls: string) =>
+    PAGES.map((p) => (
+      <button key={p.id} className={`nav-btn ${page === p.id ? "active" : ""} ${cls}`} onClick={() => setPage(p.id)}>
+        <span aria-hidden>{p.icon}</span>
+        {p.label}
+        {p.id === "contas" && pendingBills > 0 && <span className="nav-badge">{pendingBills}</span>}
+      </button>
+    ));
+
+  return (
+    <div className="layout">
+      <aside className="sidebar">
+        <div className="brand">
+          caxxa<span>.</span>
+        </div>
+        {nav("")}
+        <div className="sidebar-foot">
+          IA: {status?.ai ? "Claude conectado" : "análise local"}
+          <br />
+          Open Finance: {status?.openFinance === "pluggy" ? "Pluggy" : "sandbox"}
+        </div>
+      </aside>
+      <nav className="mobile-nav">{nav("")}</nav>
+      <main className="main">
+        {page === "painel" && <Dashboard snap={snap} go={setPage} />}
+        {page === "fluxo" && <Cashflow snap={snap} />}
+        {page === "lancamentos" && <Transactions snap={snap} />}
+        {page === "metas" && <Goals snap={snap} />}
+        {page === "contas" && <Bills snap={snap} />}
+        {page === "openfinance" && <OpenFinance status={status} />}
+        {page === "ia" && <Assistant snap={snap} status={status} />}
+      </main>
+    </div>
+  );
+}
