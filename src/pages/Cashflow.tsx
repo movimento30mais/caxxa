@@ -4,7 +4,7 @@ import { num, useFlowGrid, type SectionMeta } from "../components/FlowGrid";
 import { PageHead } from "../components/ui";
 import type { Snapshot } from "../lib/analytics";
 import { api } from "../lib/api";
-import { companyBase } from "../lib/company";
+import { companyBase, companyEnabled } from "../lib/company";
 import { fmt, fmtK, monthLabel, monthRange } from "../lib/months";
 import { parseAmount } from "../lib/parse";
 import { uid } from "../lib/seed";
@@ -13,7 +13,7 @@ import type { FlowLine, Investment, LineGroup } from "../lib/types";
 
 const SECTIONS: Record<LineGroup, SectionMeta> = {
   pessoal: { title: "Despesas pessoais", hint: "digite valores positivos; entram como saída", category: "Diversos" },
-  renda: { title: "Receitas", hint: "receitas pessoais (13º, férias, aluguéis); as retiradas da empresa entram sozinhas", category: "Renda" },
+  renda: { title: "Receitas", hint: "salário (CLT), 13º, férias, aluguéis…", category: "Renda" },
   extra: { title: "Outros lançamentos", hint: "use sinal negativo para saídas", category: "Diversos" },
 };
 
@@ -41,8 +41,9 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     }));
 
   // Retiradas da empresa (pró-labore, lucro) entram como receitas, somente leitura aqui.
-  const withdrawals = company.lines.filter((l) => l.group === "retirada");
-  const cBase = companyBase(company);
+  const pj = companyEnabled(company);
+  const withdrawals = pj ? company.lines.filter((l) => l.group === "retirada") : [];
+  const fromCompanyBase = pj ? companyBase(company) : { perLine: {} as Record<string, number>, retiradas: 0 };
   const linesOf = (g: LineGroup) => lines.filter((l: FlowLine) => l.group === g).map((l) => grid.lineRow(l));
 
   async function importFile(file: File) {
@@ -120,6 +121,21 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
               <span className="sub">aplica a sobra / cobre o déficit</span>
             </label>
           </div>
+          <label className="field" style={{ marginTop: 12 }}>
+            <span className="row" style={{ gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={pj}
+                onChange={(e) => update((s) => ({ ...s, company: { ...s.company, enabled: e.target.checked } }))}
+              />
+              Recebo pela minha empresa (PJ)
+            </span>
+            <span className="sub">
+              {pj
+                ? "Pró-labore e lucro vêm do menu Empresa. Se o salário já entra por lá, apague a linha de salário das Receitas para não contar duas vezes."
+                : "Desligado: lance o salário (CLT) direto nas Receitas abaixo."}
+            </span>
+          </label>
         </div>
         <div className="card span2">
           <div className="card-head">
@@ -158,17 +174,17 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
                     ↗ {company.name}
                   </a>
                 </td>
-                <td className="base">{num.format(cBase.perLine[w.id] ?? 0)}</td>
+                <td className="base">{num.format(fromCompanyBase.perLine[w.id] ?? 0)}</td>
                 {snap.company.map((c) => (
                   <td key={c.month}>{c.values[w.id] ? num.format(c.values[w.id]) : ""}</td>
                 ))}
               </tr>
             ))}
             {linesOf("renda")}
-            {calcRow("Receitas do mês", flow.map((m) => m.renda + m.retiradas), "calc", grid.baseSum("renda") + cBase.retiradas)}
+            {calcRow("Receitas do mês", flow.map((m) => m.renda + m.retiradas), "calc", grid.baseSum("renda") + fromCompanyBase.retiradas)}
             {section("extra")}
             {linesOf("extra")}
-            {calcRow("Saldo final", flow.map((m) => m.saldoFinal), "total", grid.baseSum("pessoal", "renda", "extra") + cBase.retiradas)}
+            {calcRow("Saldo final", flow.map((m) => m.saldoFinal), "total", grid.baseSum("pessoal", "renda", "extra") + fromCompanyBase.retiradas)}
             {grid.sectionRow("Investimentos")}
             {invRows.map((i) => calcRow(`${i.name}${i.sweepTarget ? " ⇄" : ""}`, flow.map((m) => m.investimentos[i.id])))}
             {calcRow("Total investido", flow.map((m) => m.totalInvestido), "total")}

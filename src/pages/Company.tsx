@@ -2,7 +2,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { num, useFlowGrid, type SectionMeta } from "../components/FlowGrid";
 import { PageHead, Stat } from "../components/ui";
 import type { Snapshot } from "../lib/analytics";
-import { companyBase } from "../lib/company";
+import { companyBase, companyEnabled } from "../lib/company";
 import { fmt, fmt0, fmtK, monthLabel, monthRange } from "../lib/months";
 import { parseAmount } from "../lib/parse";
 import { useStore } from "../lib/store";
@@ -74,6 +74,24 @@ export default function Company({ snap }: { snap: Snapshot }) {
   };
   const linesOf = (g: CompanyGroup) => company.lines.filter((l) => l.group === g).map(row);
 
+  if (!companyEnabled(company)) {
+    return (
+      <>
+        <PageHead title="Empresa" sub="Fluxo de caixa da PJ, para quem recebe pró-labore e lucro pela própria empresa." />
+        <div className="card" style={{ maxWidth: 560 }}>
+          <h2>O fluxo da empresa está desligado</h2>
+          <p className="sub" style={{ fontSize: 14, marginBottom: 14 }}>
+            Quem é CLT lança o salário direto nas Receitas do fluxo pessoal. Se você recebe pela sua empresa, ligue para lançar faturamento,
+            despesas e retiradas — pró-labore e lucro entram sozinhos como receita no fluxo pessoal.
+          </p>
+          <button className="btn primary" onClick={() => setCompany((c) => ({ ...c, enabled: true }))}>
+            Ligar fluxo da empresa
+          </button>
+        </div>
+      </>
+    );
+  }
+
   const first = flow[0];
   const chart = flow.map((c) => ({ mes: monthLabel(c.month), Faturamento: Math.round(c.faturamento), Despesas: Math.round(-c.despesas), Retiradas: Math.round(c.retiradas) }));
   const margem = first && first.faturamento ? first.resultado / first.faturamento : 0;
@@ -82,6 +100,16 @@ export default function Company({ snap }: { snap: Snapshot }) {
   return (
     <>
       <PageHead title={company.name} sub="Fluxo de caixa da empresa. Pró-labore e lucro retirados entram automaticamente como receita no fluxo pessoal.">
+        <button
+          className="btn"
+          title="Para quem não é PJ: as receitas passam a vir só do fluxo pessoal"
+          onClick={() =>
+            confirm("Desligar o fluxo da empresa? Pró-labore e lucro deixam de entrar no fluxo pessoal (os dados da empresa ficam guardados).") &&
+            setCompany((c) => ({ ...c, enabled: false }))
+          }
+        >
+          Desligar empresa
+        </button>
         <a className="btn" href="#fluxo">
           Ver fluxo pessoal →
         </a>

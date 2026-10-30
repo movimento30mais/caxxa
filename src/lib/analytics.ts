@@ -1,5 +1,5 @@
 import { computeCashflow, plannedByCategory, type MonthResult } from "./cashflow";
-import { computeCompany, type CompanyMonth } from "./company";
+import { companyEnabled, computeCompany, type CompanyMonth } from "./company";
 import { addMonths, currentMonth, fmt0, monthLabel, monthOf } from "./months";
 import type { AppState, Bill, Goal, MonthKey, Transaction } from "./types";
 
@@ -128,7 +128,9 @@ export interface Snapshot {
 export function snapshot(state: AppState, now = new Date()): Snapshot {
   const month = currentMonth(now);
   const company = computeCompany(state.settings, state.company);
-  const flow = computeCashflow(state.settings, state.lines, state.investments, Object.fromEntries(company.map((c) => [c.month, c.retiradas])));
+  // Com a empresa desligada, nada vem dela para o pessoal.
+  const retiradas = companyEnabled(state.company) ? Object.fromEntries(company.map((c) => [c.month, c.retiradas])) : {};
+  const flow = computeCashflow(state.settings, state.lines, state.investments, retiradas);
   const histMonths = historyMonths(state.transactions, addMonths(month, 1), 6);
   return {
     month,
@@ -242,7 +244,7 @@ export function aiPayload(state: AppState, snap: Snapshot) {
       totalInvestido: Math.round(m.totalInvestido),
       previdencia: Math.round(m.previdencia),
     })),
-    empresa: snap.company.map((c) => ({
+    empresa: (companyEnabled(state.company) ? snap.company : []).map((c) => ({
       mes: c.month,
       faturamento: Math.round(c.faturamento),
       despesas: Math.round(c.despesas),

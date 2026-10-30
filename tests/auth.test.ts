@@ -89,3 +89,10 @@ describe("cadastro aberto", () => {
     expect(await r.json()).toMatchObject({ signupEnabled: true });
   });
 });
+
+describe("tela de login após sair", () => {
+  it("login e cadastro informam se o cadastro está aberto, para a aba continuar visível", async () => {
+    expect(await (await login("ana", "s3nha-forte")).json()).toMatchObject({ signupEnabled: true });
+    expect(await (await signup("davi", "senha-do-davi")).json()).toMatchObject({ signupEnabled: true });
+  });
+});

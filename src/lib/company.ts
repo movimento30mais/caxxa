@@ -16,6 +16,9 @@ export interface CompanyMonth {
   values: Record<string, number>;
 }
 
+/** Empresa ligada? Estados antigos (sem o campo) são de quem já usava a empresa. */
+export const companyEnabled = (company: CompanyState) => company.enabled !== false;
+
 /** Valor de uma linha num mês, dado o faturamento do mês (para despesas em %). */
 function lineValue(l: CompanyLine, month: MonthKey, faturamento: number): number {
   if (l.group === "despesa" && l.pctFaturamento !== undefined) return -Math.round(faturamento * l.pctFaturamento * 100) / 100;

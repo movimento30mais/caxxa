@@ -37,6 +37,8 @@ export type CompanyLine = FlowLine<CompanyGroup>;
 
 export interface CompanyState {
   name: string;
+  /** Fluxo da empresa ligado (quem é PJ). Desligado, as receitas vêm só do fluxo pessoal (ex.: salário CLT). */
+  enabled?: boolean;
   /** Saldo em caixa da PJ no início do primeiro mês. */
   openingBalance: number;
   lines: CompanyLine[];
@@ -111,4 +113,6 @@ export interface AppState {
   goals: Goal[];
   bills: Bill[];
   connections: BankConnection[];
+  /** false = ainda não respondeu "Como você recebe?" (CLT ou PJ). Estados antigos não têm o campo e não perguntam. */
+  onboarded?: boolean;
 }

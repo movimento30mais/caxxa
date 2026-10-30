@@ -159,3 +159,34 @@ describe("migração do formato antigo", () => {
     expect(nov.saldoFinal).toBeCloseTo(39595.57 - 3715.2 - 178.31 + 100, 2);
   });
 });
+
+describe("empresa opcional e exemplos de novos usuários", () => {
+  it("novo usuário começa como CLT: empresa desligada, salário no fluxo pessoal", async () => {
+    const { demoState } = await import("../src/lib/seed");
+    const { snapshot } = await import("../src/lib/analytics");
+    const st = demoState(new Date(2026, 9, 15));
+    expect(st.onboarded).toBe(false);
+    expect(st.company.enabled).toBe(false);
+    expect(st.lines.filter((l) => l.group === "pessoal").length).toBeLessThanOrEqual(6);
+    const snap = snapshot(st, new Date(2026, 9, 15));
+    // Nada vem da empresa desligada; a receita é o salário lançado no pessoal.
+    expect(snap.flow.every((m) => m.retiradas === 0)).toBe(true);
+    expect(snap.flow[0].renda).toBe(6500);
+    expect(snap.flow[0].saldo1).toBe(6500 - 4850);
+  });
+
+  it("ligando a empresa, as retiradas voltam a entrar no pessoal", async () => {
+    const { demoState } = await import("../src/lib/seed");
+    const { snapshot } = await import("../src/lib/analytics");
+    const st = demoState(new Date(2026, 9, 15));
+    const snap = snapshot({ ...st, company: { ...st.company, enabled: true } }, new Date(2026, 9, 15));
+    // 8.000 − 6% − 300 = 7.220 retirados (pró-labore 1.500 + lucro automático 5.720)
+    expect(snap.flow[0].retiradas).toBe(7220);
+  });
+
+  it("estados antigos sem o campo continuam com a empresa ligada", async () => {
+    const { companyEnabled } = await import("../src/lib/company");
+    expect(companyEnabled({ name: "x", openingBalance: 0, lines: [] })).toBe(true);
+    expect(companyEnabled({ name: "x", openingBalance: 0, lines: [], enabled: false })).toBe(false);
+  });
+});

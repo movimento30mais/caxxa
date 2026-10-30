@@ -106,7 +106,7 @@ export async function login(req: Request, res: Response) {
     return;
   }
   setCookie(res, issueToken(username), MAX_AGE_S);
-  res.json({ user: username, authEnabled: true });
+  res.json({ user: username, authEnabled: true, signupEnabled: userStore() !== null });
 }
 
 const USERNAME = /^[a-z0-9][a-z0-9._-]{2,29}$/;
@@ -137,7 +137,7 @@ export async function signup(req: Request, res: Response) {
     return;
   }
   setCookie(res, issueToken(username), MAX_AGE_S);
-  res.status(201).json({ user: username, authEnabled: true });
+  res.status(201).json({ user: username, authEnabled: true, signupEnabled: true });
 }
 
 export function logout(_req: Request, res: Response) {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { snapshot } from "./lib/analytics";
 import { api, type ServerStatus, type Session } from "./lib/api";
+import { Onboarding } from "./components/Onboarding";
+import { companyEnabled } from "./lib/company";
 import { useStore } from "./lib/store";
 import Dashboard from "./pages/Dashboard";
 import Cashflow from "./pages/Cashflow";
@@ -49,7 +51,8 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
   }, []);
 
   const nav = (cls: string) =>
-    PAGES.map((p) => (
+    // O menu Empresa só aparece para quem recebe pela empresa (PJ).
+    PAGES.filter((p) => p.id !== "empresa" || companyEnabled(state.company)).map((p) => (
       <button key={p.id} className={`nav-btn ${page === p.id ? "active" : ""} ${cls}`} onClick={() => setPage(p.id)}>
         <span aria-hidden>{p.icon}</span>
         {p.label}
@@ -95,6 +98,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
         )}
       </nav>
       <main className="main">
+        <Onboarding onPj={() => setPage("empresa")} />
         {page === "painel" && <Dashboard snap={snap} go={setPage} />}
         {page === "fluxo" && <Cashflow snap={snap} />}
         {page === "empresa" && <Company snap={snap} />}

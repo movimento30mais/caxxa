@@ -19,12 +19,14 @@ export default function Dashboard({ snap, go }: { snap: Snapshot; go: (p: PageId
     .map((name) => ({ name, realizado: Math.round(actual[name] ?? 0), orcamento: Math.round(planned[name] ?? 0) }))
     .sort((a, b) => b.orcamento + b.realizado - (a.orcamento + a.realizado));
 
+  const hasPrev = flow.some((m) => m.previdencia > 0);
   const proj = flow.map((m) => ({ mes: monthLabel(m.month), Investimentos: Math.round(m.totalInvestido), Previdência: Math.round(m.previdencia) }));
   const hist = history.map((h) => ({ mes: monthLabel(h.month), Receitas: Math.round(h.receitas), Despesas: Math.round(h.despesas) }));
 
   return (
     <>
       <PageHead title="Painel" sub={`Visão de ${monthLabel(snap.month)} e projeção de ${flow.length} meses`} />
+
 
       <div className="grid g4">
         <Stat
@@ -88,9 +90,9 @@ export default function Dashboard({ snap, go }: { snap: Snapshot; go: (p: PageId
               <XAxis dataKey="mes" axisLine={false} tickLine={false} />
               <YAxis tickFormatter={fmtK} axisLine={false} tickLine={false} width={80} />
               <Tooltip formatter={(v) => fmt(Number(v))} />
-              <Legend verticalAlign="top" height={28} iconType="circle" iconSize={8} itemSorter={null} />
+              {hasPrev && <Legend verticalAlign="top" height={28} iconType="circle" iconSize={8} itemSorter={null} />}
               <Area type="monotone" dataKey="Investimentos" stackId="1" stroke="var(--series-1)" fill="var(--series-1)" fillOpacity={0.18} strokeWidth={2} />
-              <Area type="monotone" dataKey="Previdência" stackId="1" stroke="var(--series-2)" fill="var(--series-2)" fillOpacity={0.18} strokeWidth={2} />
+              {hasPrev && <Area type="monotone" dataKey="Previdência" stackId="1" stroke="var(--series-2)" fill="var(--series-2)" fillOpacity={0.18} strokeWidth={2} />}
             </AreaChart>
           </ResponsiveContainer>
         </div>

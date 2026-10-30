@@ -9,7 +9,7 @@ planejamento mensal, registro e categorização de despesas, metas, alertas de v
 |---|---|
 | **Painel** | Gastos do mês x planejado, sobra do mês (Saldo 1), patrimônio projetado, despesas por categoria, receitas x despesas, vencimentos e metas. |
 | **Fluxo pessoal** | Grade mês a mês editável no mesmo modelo da planilha (ver abaixo), com a coluna **Base** — o orçamento mensal de cada linha, usado nas comparações realizado x orçamento. Aceita valores como `1.234,56` ou fórmulas simples (`=-2337,5-780`, `-400*4`). **Importa a planilha .xlsx** diretamente. |
-| **Empresa** | Fluxo de caixa da PJ: faturamento, despesas (fixas ou % do faturamento, ex.: Simples/impostos) e retiradas. Pró-labore e lucro retirados entram **automaticamente como receita no fluxo pessoal**; a retirada marcada como *auto* distribui o resultado que sobrar no mês. |
+| **Empresa** *(opcional, para quem é PJ)* | Fluxo de caixa da PJ: faturamento, despesas (fixas ou % do faturamento, ex.: Simples/impostos) e retiradas. Pró-labore e lucro retirados entram **automaticamente como receita no fluxo pessoal**; a retirada marcada como *auto* distribui o resultado que sobrar no mês. Quem é CLT deixa desligado e lança o salário nas Receitas do fluxo pessoal. Liga/desliga em "Recebo pela minha empresa (PJ)" no Fluxo pessoal ou no próprio menu Empresa. |
 | **Lançamentos** | Registro de receitas e despesas com categoria sugerida automaticamente, filtros e orçamento do mês (realizado x fluxo de caixa). |
 | **Metas** | Objetivos com valor, prazo, aporte mensal necessário e comparação com a sobra projetada. |
 | **Contas a pagar** | Contas recorrentes com status (atrasada, vence hoje, em breve, paga) e notificações do navegador. |
@@ -87,7 +87,8 @@ npm run hash-password -- <usuario> <senha>
 
 - A sessão fica num cookie `HttpOnly` assinado (`AUTH_SECRET`), válido por 30 dias. Sem sessão, a API responde 401.
 - Os dados financeiros **ficam só no navegador** (`localStorage`), separados por usuário (`caxxa:v1:<usuário>`).
-  O servidor não guarda nenhum dado financeiro. Toda conta, em qualquer aparelho, começa com os **dados de exemplo**;
+  O servidor não guarda nenhum dado financeiro. Toda conta, em qualquer aparelho, começa com **dados de exemplo pequenos**
+  (perfil CLT, poucas linhas) e uma pergunta "Como você recebe?" — CLT mantém o salário no pessoal, PJ liga a Empresa;
   ninguém vê os dados de outra pessoa. "Voltar aos dados de exemplo" apaga os dados do usuário naquele navegador.
 - Localmente, sem Blob, use `AUTH_SIGNUP=memory` para testar o cadastro (as contas somem ao reiniciar).
 

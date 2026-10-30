@@ -192,6 +192,8 @@ tr:hover .line-actions, .line-actions:focus-within { opacity: 1; }
 
 .mobile-nav { display: none; }
 
+.onboarding { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; border-color: var(--accent); background: var(--accent-soft); }
+
 .login-wrap { min-height: 100%; display: grid; place-items: center; padding: 16px; background: var(--bg); }
 .login-card { width: 100%; max-width: 360px; padding: 28px; display: flex; flex-direction: column; }
 .login-card input { padding: 9px 11px; }
