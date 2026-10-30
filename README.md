@@ -74,12 +74,27 @@ Publicado em **https://caxxa.vercel.app** (projeto `caxxa` no time Movirun Club)
 O `vercel.json` roda `npm run vercel-build`, que compila o front e empacota a API Express como uma função Node
 em `.vercel/output` (Build Output API). As variáveis abaixo são cadastradas em *Project → Settings → Environment Variables*.
 
+## Login e onde ficam os dados
+
+- O acesso pede **usuário e senha** (quando `AUTH_USERS` está configurado). A senha é conferida no servidor
+  (hash scrypt) e a sessão fica num cookie `HttpOnly` assinado, válido por 30 dias. Sem sessão, a API responde 401.
+- Os dados financeiros **ficam só no navegador** (`localStorage`), separados por usuário (`caxxa:v1:<usuário>`).
+  O servidor não guarda nada. Todo usuário, em qualquer aparelho, começa vendo apenas os **dados de exemplo**;
+  ninguém vê os dados de outra pessoa. "Voltar aos dados de exemplo" apaga os dados do usuário naquele navegador.
+- Para criar um usuário: gere a entrada e acrescente em `AUTH_USERS` (separe vários por vírgula):
+
+```bash
+npm run hash-password -- <usuario> <senha>
+```
+
 ## Configuração
 
 | Variável | Uso |
 |---|---|
 | `ANTHROPIC_API_KEY` | Ativa as recomendações do Claude (`claude-opus-5-5`, saída estruturada validada com Zod). Só totais agregados são enviados — nunca descrições de lançamentos. |
 | `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Ativa o Open Finance real. Autorize a conta no Pluggy Connect e cole o *Item ID* na tela Open Finance. |
+| `AUTH_USERS` | Usuários e hashes de senha (`usuario:scrypt$…`, separados por vírgula). Vazio = sem login. |
+| `AUTH_SECRET` | Chave aleatória para assinar a sessão. |
 | `PORT` | Porta da API (padrão 8787). |
 
 O servidor lê o arquivo `.env` na raiz automaticamente, se existir.

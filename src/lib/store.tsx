@@ -3,11 +3,19 @@ import { splitCompany, type LegacyLine } from "./migrate";
 import { demoState } from "./seed";
 import type { AppState } from "./types";
 
-const KEY = "caxxa:v1";
+/** Versão antiga gravava tudo numa chave só, sem usuário. */
+const LEGACY_KEY = "caxxa:v1";
+/** Cada usuário tem seus dados separados neste navegador. */
+export const storageKey = (user: string) => `caxxa:v1:${user}`;
 
-function load(): AppState {
+function load(key: string): AppState {
   try {
-    const raw = localStorage.getItem(KEY);
+    let raw = localStorage.getItem(key);
+    if (!raw && (raw = localStorage.getItem(LEGACY_KEY))) {
+      // Dados de antes do login: ficam com o primeiro usuário que entrar neste navegador.
+      localStorage.setItem(key, raw);
+      localStorage.removeItem(LEGACY_KEY);
+    }
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
       if (parsed.version === 1) {
@@ -31,15 +39,16 @@ interface Store {
 
 const Ctx = createContext<Store | null>(null);
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(load);
+export function StoreProvider({ user, children }: { user: string; children: ReactNode }) {
+  const key = storageKey(user);
+  const [state, setState] = useState<AppState>(() => load(key));
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(state));
+      localStorage.setItem(key, JSON.stringify(state));
     } catch {
       /* ignora: modo privado ou cota cheia */
     }
-  }, [state]);
+  }, [key, state]);
   return <Ctx.Provider value={{ state, update: setState, reset: () => setState(demoState()) }}>{children}</Ctx.Provider>;
 }
 

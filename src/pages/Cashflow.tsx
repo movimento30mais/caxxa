@@ -93,9 +93,9 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
             <label className="field">
               Horizonte
               <select value={settings.months} onChange={(e) => update((s) => ({ ...s, settings: { ...s.settings, months: Number(e.target.value) } }))}>
-                {[6, 12, 18, 24, 36].map((n) => (
+                {[1, 3, 6, 12, 18, 24, 36].map((n) => (
                   <option key={n} value={n}>
-                    {n} meses
+                    {n} {n === 1 ? "mês" : "meses"}
                   </option>
                 ))}
               </select>

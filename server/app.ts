@@ -1,12 +1,19 @@
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { AiRefusal, aiAvailable, getAdvice } from "./ai";
+import { login, logout, me, requireAuth } from "./auth";
 import { importCashflowXlsx } from "./importXlsx";
 import { openFinanceMode, syncItem } from "./openfinance";
 
 /** Rotas da API. Usado pelo servidor local (server/index.ts) e pela função serverless da Vercel. */
 const app = express();
 app.use(express.json({ limit: "2mb" }));
+
+app.post("/api/auth/login", login);
+app.post("/api/auth/logout", logout);
+app.get("/api/auth/me", me);
+// Daqui para baixo, só com sessão válida (quando AUTH_USERS está configurado).
+app.use("/api", requireAuth);
 
 app.get("/api/status", (_req, res) => {
   res.json({ ai: aiAvailable(), openFinance: openFinanceMode() });

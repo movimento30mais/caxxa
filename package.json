@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production tsx server/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p .",
-    "vercel-build": "npm run build && node scripts/build-vercel.mjs"
+    "vercel-build": "npm run build && node scripts/build-vercel.mjs",
+    "hash-password": "node scripts/hash-password.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

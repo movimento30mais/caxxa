@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { snapshot } from "./lib/analytics";
-import { api, type ServerStatus } from "./lib/api";
+import { api, type ServerStatus, type Session } from "./lib/api";
 import { useStore } from "./lib/store";
 import Dashboard from "./pages/Dashboard";
 import Cashflow from "./pages/Cashflow";
@@ -23,8 +23,8 @@ const PAGES = [
 ] as const;
 export type PageId = (typeof PAGES)[number]["id"];
 
-export default function App() {
-  const { state } = useStore();
+export default function App({ session, onLogout }: { session: Session; onLogout: () => void }) {
+  const { state, reset } = useStore();
   const [page, setPage] = useState<PageId>(() => (location.hash.slice(1) as PageId) || "painel");
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const snap = useMemo(() => snapshot(state), [state]);
@@ -65,12 +65,35 @@ export default function App() {
         </div>
         {nav("")}
         <div className="sidebar-foot">
+          {session.authEnabled && (
+            <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+              <span>👤 {session.user}</span>
+              <button className="btn small" onClick={onLogout}>
+                Sair
+              </button>
+            </div>
+          )}
+          <button
+            className="btn ghost small"
+            style={{ padding: 0, marginBottom: 8, color: "var(--muted)" }}
+            onClick={() => confirm("Apagar seus dados neste navegador e voltar aos dados de exemplo?") && reset()}
+          >
+            ↺ Voltar aos dados de exemplo
+          </button>
+          <br />
           IA: {status?.ai ? "Claude conectado" : "análise local"}
           <br />
           Open Finance: {status?.openFinance === "pluggy" ? "Pluggy" : "sandbox"}
         </div>
       </aside>
-      <nav className="mobile-nav">{nav("")}</nav>
+      <nav className="mobile-nav">
+        {nav("")}
+        {session.authEnabled && (
+          <button className="nav-btn" onClick={onLogout}>
+            Sair
+          </button>
+        )}
+      </nav>
       <main className="main">
         {page === "painel" && <Dashboard snap={snap} go={setPage} />}
         {page === "fluxo" && <Cashflow snap={snap} />}
