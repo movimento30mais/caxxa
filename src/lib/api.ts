@@ -26,11 +26,13 @@ const json = (data: unknown): RequestInit => ({
 export interface Session {
   user: string;
   authEnabled: boolean;
+  signupEnabled?: boolean;
 }
 
 export const api = {
   me: () => call<Session>("/api/auth/me"),
   login: (username: string, password: string) => call<Session>("/api/auth/login", json({ username, password })),
+  signup: (username: string, password: string) => call<Session>("/api/auth/signup", json({ username, password })),
   logout: () => call<{ ok: true }>("/api/auth/logout", { method: "POST" }),
   status: () => call<ServerStatus>("/api/status"),
   advice: (summary: AiPayload, question?: string) => call<Advice>("/api/ai/advice", json({ summary, question })),

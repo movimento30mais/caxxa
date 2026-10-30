@@ -1,7 +1,7 @@
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { AiRefusal, aiAvailable, getAdvice } from "./ai";
-import { login, logout, me, requireAuth } from "./auth";
+import { login, logout, me, requireAuth, signup } from "./auth";
 import { importCashflowXlsx } from "./importXlsx";
 import { openFinanceMode, syncItem } from "./openfinance";
 
@@ -10,6 +10,7 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 app.post("/api/auth/login", login);
+app.post("/api/auth/signup", signup);
 app.post("/api/auth/logout", logout);
 app.get("/api/auth/me", me);
 // Daqui para baixo, só com sessão válida (quando AUTH_USERS está configurado).

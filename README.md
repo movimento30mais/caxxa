@@ -74,18 +74,22 @@ Publicado em **https://caxxa.vercel.app** (projeto `caxxa` no time Movirun Club)
 O `vercel.json` roda `npm run vercel-build`, que compila o front e empacota a API Express como uma função Node
 em `.vercel/output` (Build Output API). As variáveis abaixo são cadastradas em *Project → Settings → Environment Variables*.
 
-## Login e onde ficam os dados
+## Login, cadastro e onde ficam os dados
 
-- O acesso pede **usuário e senha** (quando `AUTH_USERS` está configurado). A senha é conferida no servidor
-  (hash scrypt) e a sessão fica num cookie `HttpOnly` assinado, válido por 30 dias. Sem sessão, a API responde 401.
-- Os dados financeiros **ficam só no navegador** (`localStorage`), separados por usuário (`caxxa:v1:<usuário>`).
-  O servidor não guarda nada. Todo usuário, em qualquer aparelho, começa vendo apenas os **dados de exemplo**;
-  ninguém vê os dados de outra pessoa. "Voltar aos dados de exemplo" apaga os dados do usuário naquele navegador.
-- Para criar um usuário: gere a entrada e acrescente em `AUTH_USERS` (separe vários por vírgula):
+- **Cadastro aberto:** na tela inicial, "Criar conta" pede usuário e senha (mín. 8 caracteres) e já entra logado.
+  As contas ficam no **Vercel Blob privado** do projeto (`users/<usuário>.json`), só com o hash scrypt da senha.
+  Há um limite simples de tentativas por IP para login e cadastro.
+- **Contas fixas** em `AUTH_USERS` (ex.: `admin`) continuam valendo e não podem ser recriadas pelo cadastro:
 
 ```bash
 npm run hash-password -- <usuario> <senha>
 ```
+
+- A sessão fica num cookie `HttpOnly` assinado (`AUTH_SECRET`), válido por 30 dias. Sem sessão, a API responde 401.
+- Os dados financeiros **ficam só no navegador** (`localStorage`), separados por usuário (`caxxa:v1:<usuário>`).
+  O servidor não guarda nenhum dado financeiro. Toda conta, em qualquer aparelho, começa com os **dados de exemplo**;
+  ninguém vê os dados de outra pessoa. "Voltar aos dados de exemplo" apaga os dados do usuário naquele navegador.
+- Localmente, sem Blob, use `AUTH_SIGNUP=memory` para testar o cadastro (as contas somem ao reiniciar).
 
 ## Configuração
 
@@ -95,6 +99,7 @@ npm run hash-password -- <usuario> <senha>
 | `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Ativa o Open Finance real. Autorize a conta no Pluggy Connect e cole o *Item ID* na tela Open Finance. |
 | `AUTH_USERS` | Usuários e hashes de senha (`usuario:scrypt$…`, separados por vírgula). Vazio = sem login. |
 | `AUTH_SECRET` | Chave aleatória para assinar a sessão. |
+| `BLOB_READ_WRITE_TOKEN` | Criado pela Vercel ao ligar o Blob privado ao projeto; ativa o cadastro aberto. |
 | `PORT` | Porta da API (padrão 8787). |
 
 O servidor lê o arquivo `.env` na raiz automaticamente, se existir.
