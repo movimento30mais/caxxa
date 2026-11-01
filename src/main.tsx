@@ -10,7 +10,7 @@ createRoot(document.getElementById("root")!).render(
     <AuthGate>
       {(session, logout) => (
         // key: trocar de usuário recarrega os dados daquele usuário.
-        <StoreProvider key={session.user} user={session.user}>
+        <StoreProvider key={session.user} user={session.user} cloud={Boolean(session.cloudSync)}>
           <App session={session} onLogout={logout} />
         </StoreProvider>
       )}

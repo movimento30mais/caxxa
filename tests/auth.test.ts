@@ -46,7 +46,7 @@ describe("login", () => {
     const cookie = r.headers.get("set-cookie")!;
     expect(cookie).toMatch(/caxxa_session=.+; Path=\/; HttpOnly; SameSite=Lax/);
     const session = cookie.split(";")[0];
-    expect(await (await fetch(`${base}/api/auth/me`, { headers: { cookie: session } })).json()).toEqual({ user: "ana", authEnabled: true, signupEnabled: true });
+    expect(await (await fetch(`${base}/api/auth/me`, { headers: { cookie: session } })).json()).toEqual({ user: "ana", authEnabled: true, signupEnabled: true, cloudSync: true });
     expect((await fetch(`${base}/api/status`, { headers: { cookie: session } })).status).toBe(200);
   });
 
@@ -64,7 +64,7 @@ describe("cadastro aberto", () => {
     const r = await signup("Bia.Silva", "minha-senha-1");
     expect(r.status).toBe(201);
     const session = r.headers.get("set-cookie")!.split(";")[0];
-    expect(await (await fetch(`${base}/api/auth/me`, { headers: { cookie: session } })).json()).toEqual({ user: "bia.silva", authEnabled: true, signupEnabled: true });
+    expect(await (await fetch(`${base}/api/auth/me`, { headers: { cookie: session } })).json()).toEqual({ user: "bia.silva", authEnabled: true, signupEnabled: true, cloudSync: true });
     expect((await login("bia.silva", "minha-senha-1")).status).toBe(200);
     expect((await login("bia.silva", "outra-senha")).status).toBe(401);
   });
@@ -94,5 +94,51 @@ describe("tela de login após sair", () => {
   it("login e cadastro informam se o cadastro está aberto, para a aba continuar visível", async () => {
     expect(await (await login("ana", "s3nha-forte")).json()).toMatchObject({ signupEnabled: true });
     expect(await (await signup("davi", "senha-do-davi")).json()).toMatchObject({ signupEnabled: true });
+  });
+});
+
+describe("dados salvos na conta", () => {
+  const state = (salario: number) => ({ version: 1, lines: [{ name: "Salário", values: { "2026-11": salario } }] });
+  let cookie = "";
+  const data = (method: string, body?: unknown, type = "application/json") =>
+    fetch(`${base}/api/data`, { method, headers: { cookie, "content-type": type }, body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body) });
+
+  it("exige login", async () => {
+    expect((await fetch(`${base}/api/data`)).status).toBe(401);
+  });
+
+  it("guarda e devolve os dados do usuário", async () => {
+    const r = await signup("sync.user", "senha-sync-1");
+    cookie = r.headers.get("set-cookie")!.split(";")[0];
+    expect(await r.json()).toMatchObject({ cloudSync: true });
+    expect((await data("GET")).status).toBe(404);
+    expect((await data("PUT", { updatedAt: 100, state: state(5000) })).status).toBe(200);
+    expect(await (await data("GET")).json()).toEqual({ updatedAt: 100, state: state(5000) });
+  });
+
+  it("não deixa dados mais antigos sobrescreverem os mais novos", async () => {
+    const r = await data("PUT", { updatedAt: 50, state: state(1) });
+    expect(r.status).toBe(409);
+    expect(await r.json()).toMatchObject({ updatedAt: 100 });
+  });
+
+  it("aceita o envio do app indo para segundo plano (sendBeacon, texto)", async () => {
+    expect((await data("POST", JSON.stringify({ updatedAt: 200, state: state(7000) }), "text/plain")).status).toBe(200);
+    expect(await (await data("GET")).json()).toMatchObject({ updatedAt: 200, state: state(7000) });
+  });
+
+  it("cada usuário só vê os próprios dados", async () => {
+    // Outra conexão (o limite de cadastros é por IP).
+    const r = await fetch(`${base}/api/auth/signup`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.0.0.2" },
+      body: JSON.stringify({ username: "outra.pessoa", password: "senha-outra-1" }),
+    });
+    const other = r.headers.get("set-cookie")!.split(";")[0];
+    expect((await fetch(`${base}/api/data`, { headers: { cookie: other } })).status).toBe(404);
+  });
+
+  it("recusa dados inválidos", async () => {
+    expect((await data("PUT", { updatedAt: 300, state: { version: 2 } })).status).toBe(400);
   });
 });

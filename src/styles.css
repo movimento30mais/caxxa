@@ -201,6 +201,13 @@ tr:hover .line-actions, .line-actions:focus-within { opacity: 1; }
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+.sync { font-size: 12px; }
+.sync.ok { color: var(--good); }
+.sync.warn { color: var(--warn); }
+.sync.busy { color: var(--muted); }
+.m-sync { margin-left: auto; white-space: nowrap; }
+.sync-wait { color: var(--muted); }
+
 /* ---------- Celular ---------- */
 .m-topbar, .m-tabbar, .m-picker, .m-sheet-backdrop { display: none; }
 

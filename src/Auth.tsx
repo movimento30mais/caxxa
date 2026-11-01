@@ -119,7 +119,7 @@ function Login({ signupEnabled, onLogin }: { signupEnabled: boolean; onLogin: (s
           {busy ? (signingUp ? "Criando…" : "Entrando…") : signingUp ? "Criar conta e entrar" : "Entrar"}
         </button>
         <p className="sub" style={{ marginTop: 14 }}>
-          Seus dados financeiros ficam salvos apenas neste navegador. Cada conta começa com dados de exemplo.
+          Seus dados ficam salvos na sua conta e aparecem em qualquer aparelho em que você entrar. Cada conta nova começa com dados de exemplo.
         </p>
       </form>
     </div>

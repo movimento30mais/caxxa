@@ -27,6 +27,8 @@ export interface Session {
   user: string;
   authEnabled: boolean;
   signupEnabled?: boolean;
+  /** O servidor guarda os dados da conta (acompanham o login em qualquer aparelho). */
+  cloudSync?: boolean;
 }
 
 export const api = {

@@ -25,11 +25,21 @@ const PAGES = [
 ] as const;
 export type PageId = (typeof PAGES)[number]["id"];
 
+const SYNC_LABEL: Record<ReturnType<typeof useStore>["sync"], { text: string; tone: string }> = {
+  saved: { text: "✓ Salvo na sua conta", tone: "ok" },
+  saving: { text: "Salvando…", tone: "busy" },
+  offline: { text: "Sem conexão: salvo neste aparelho, envio quando voltar", tone: "warn" },
+  loading: { text: "Carregando…", tone: "busy" },
+  local: { text: "Salvo só neste navegador", tone: "busy" },
+};
+
 /** Abas fixas na barra inferior do celular; as demais ficam em "Mais". */
 const MOBILE_TABS: PageId[] = ["painel", "fluxo", "lancamentos", "metas"];
 
 export default function App({ session, onLogout }: { session: Session; onLogout: () => void }) {
-  const { state, reset } = useStore();
+  const { state, reset, sync, flush } = useStore();
+  const logout = () => void flush().finally(onLogout);
+  const syncLabel = SYNC_LABEL[sync];
   const [page, setPage] = useState<PageId>(() => (location.hash.slice(1) as PageId) || "painel");
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [more, setMore] = useState(false);
@@ -73,10 +83,13 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
         </div>
         {nav("")}
         <div className="sidebar-foot">
+          <div className={`sync ${syncLabel.tone}`} style={{ marginBottom: 8 }}>
+            {syncLabel.text}
+          </div>
           {session.authEnabled && (
             <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
               <span>👤 {session.user}</span>
-              <button className="btn small" onClick={onLogout}>
+              <button className="btn small" onClick={logout}>
                 Sair
               </button>
             </div>
@@ -100,6 +113,9 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
           caxxa<span>.</span>
         </div>
         <span className="m-title">{PAGES.find((p) => p.id === page)?.label}</span>
+        <span className={`sync m-sync ${syncLabel.tone}`} title={syncLabel.text}>
+          {sync === "saved" ? "✓ Salvo" : sync === "offline" ? "⚠ Offline" : sync === "local" ? "" : "Salvando…"}
+        </span>
       </header>
       <nav className="m-tabbar" aria-label="Navegação">
         {MOBILE_TABS.map((id) => {
@@ -132,7 +148,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
                 ↺ Dados de exemplo
               </button>
               {session.authEnabled && (
-                <button className="btn small" onClick={onLogout}>
+                <button className="btn small" onClick={logout}>
                   Sair
                 </button>
               )}

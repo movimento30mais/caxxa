@@ -94,10 +94,12 @@ npm run hash-password -- <usuario> <senha>
 ```
 
 - A sessão fica num cookie `HttpOnly` assinado (`AUTH_SECRET`), válido por 30 dias. Sem sessão, a API responde 401.
-- Os dados financeiros **ficam só no navegador** (`localStorage`), separados por usuário (`caxxa:v1:<usuário>`).
-  O servidor não guarda nenhum dado financeiro. Toda conta, em qualquer aparelho, começa com **dados de exemplo pequenos**
-  (perfil CLT, poucas linhas) e uma pergunta "Como você recebe?" — CLT mantém o salário no pessoal, PJ liga a Empresa;
-  ninguém vê os dados de outra pessoa. "Voltar aos dados de exemplo" apaga os dados do usuário naquele navegador.
+- **Os dados ficam salvos na conta:** cada alteração é gravada na hora no navegador (inclusive se o app for fechado
+  no meio da edição) e enviada ao servidor em seguida, no Vercel Blob privado (`data/<usuário>.json`). Ao entrar em outro
+  aparelho — ou no app instalado na tela inicial — os dados da conta são carregados. Se dois aparelhos editarem, vale a
+  alteração mais recente. Sem conexão, o app continua salvando no aparelho e envia quando voltar.
+- Cada usuário só acessa os próprios dados. Contas novas começam com **dados de exemplo pequenos** (perfil CLT) e a pergunta
+  "Como você recebe?". "Voltar aos dados de exemplo" substitui os dados da conta pelos exemplos.
 - Localmente, sem Blob, use `AUTH_SIGNUP=memory` para testar o cadastro (as contas somem ao reiniciar).
 
 ## Configuração

@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
+import { dataStore } from "./dataStore";
 import { userStore } from "./userStore";
 
 /**
@@ -106,7 +107,7 @@ export async function login(req: Request, res: Response) {
     return;
   }
   setCookie(res, issueToken(username), MAX_AGE_S);
-  res.json({ user: username, authEnabled: true, signupEnabled: userStore() !== null });
+  res.json({ user: username, authEnabled: true, signupEnabled: userStore() !== null, cloudSync: dataStore() !== null });
 }
 
 const USERNAME = /^[a-z0-9][a-z0-9._-]{2,29}$/;
@@ -137,7 +138,7 @@ export async function signup(req: Request, res: Response) {
     return;
   }
   setCookie(res, issueToken(username), MAX_AGE_S);
-  res.status(201).json({ user: username, authEnabled: true, signupEnabled: true });
+  res.status(201).json({ user: username, authEnabled: true, signupEnabled: true, cloudSync: dataStore() !== null });
 }
 
 export function logout(_req: Request, res: Response) {
@@ -149,7 +150,7 @@ export function me(req: Request, res: Response) {
   const user = currentUser(req);
   const signupEnabled = userStore() !== null;
   if (!user) res.status(401).json({ error: "Faça login.", authEnabled: true, signupEnabled });
-  else res.json({ user, authEnabled: authEnabled(), signupEnabled });
+  else res.json({ user, authEnabled: authEnabled(), signupEnabled, cloudSync: user !== "local" && dataStore() !== null });
 }
 
 /** Bloqueia as rotas da API para quem não está logado. */

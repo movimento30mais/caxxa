@@ -1,13 +1,14 @@
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { AiRefusal, aiAvailable, getAdvice } from "./ai";
-import { login, logout, me, requireAuth, signup } from "./auth";
+import { currentUser, login, logout, me, requireAuth, signup } from "./auth";
+import { dataStore } from "./dataStore";
 import { importCashflowXlsx } from "./importXlsx";
 import { openFinanceMode, syncItem } from "./openfinance";
 
 /** Rotas da API. Usado pelo servidor local (server/index.ts) e pela função serverless da Vercel. */
 const app = express();
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "4mb" }));
 
 app.post("/api/auth/login", login);
 app.post("/api/auth/signup", signup);
@@ -17,8 +18,48 @@ app.get("/api/auth/me", me);
 app.use("/api", requireAuth);
 
 app.get("/api/status", (_req, res) => {
-  res.json({ ai: aiAvailable(), openFinance: openFinanceMode() });
+  res.json({ ai: aiAvailable(), openFinance: openFinanceMode(), cloudSync: dataStore() !== null });
 });
+
+// Dados do usuário logado, guardados no servidor para acompanharem o login em qualquer aparelho.
+app.get("/api/data", async (req, res) => {
+  const store = dataStore();
+  const user = currentUser(req);
+  if (!store || !user || user === "local") {
+    res.status(404).json({ error: "Sem armazenamento no servidor." });
+    return;
+  }
+  const saved = await store.load(user);
+  if (saved) res.json(saved);
+  else res.status(404).json({ error: "Nenhum dado salvo ainda." });
+});
+
+// PUT pelo app; POST via navigator.sendBeacon quando o app vai para segundo plano.
+const saveData = async (req: express.Request, res: express.Response) => {
+  const store = dataStore();
+  const user = currentUser(req);
+  if (!store || !user || user === "local") {
+    res.status(404).json({ error: "Sem armazenamento no servidor." });
+    return;
+  }
+  const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+  const updatedAt = Number(body?.updatedAt);
+  const state = body?.state as { version?: number } | undefined;
+  if (!Number.isFinite(updatedAt) || !state || state.version !== 1) {
+    res.status(400).json({ error: "Dados inválidos." });
+    return;
+  }
+  // Não deixa um aparelho com dados mais antigos sobrescrever os mais novos.
+  const current = await store.load(user);
+  if (current && current.updatedAt > updatedAt) {
+    res.status(409).json(current);
+    return;
+  }
+  await store.save(user, { updatedAt, state });
+  res.json({ ok: true, updatedAt });
+};
+app.put("/api/data", express.json({ limit: "4mb" }), saveData);
+app.post("/api/data", express.text({ type: () => true, limit: "4mb" }), saveData);
 
 app.post("/api/ai/advice", async (req, res) => {
   if (!aiAvailable()) {
