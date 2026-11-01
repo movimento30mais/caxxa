@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#1d6b52"/><text x="256" y="330" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="260" font-weight="800" fill="#fff">c</text><circle cx="372" cy="318" r="30" fill="#7ee0b8"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#1d6b52"/>
+    <g transform="translate(256 256) scale(1) translate(-256 -256)">
+      <text x="236" y="340" text-anchor="middle" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="300" font-weight="800" fill="#ffffff">c</text>
+      <circle cx="356" cy="322" r="30" fill="#7ee0b8"/>
+    </g></svg>

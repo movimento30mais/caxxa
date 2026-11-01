@@ -22,7 +22,8 @@ planejamento mensal, registro e categorização de despesas, metas, alertas de v
 - Fluxo pessoal e Empresa em **visão por mês** (‹ mês ›, uma linha por item com valor editável e a Base), com a tabela completa
   num botão "Tabela".
 - Campos com 16px (sem zoom no iPhone), botões com área de toque maior, layout sem rolagem lateral.
-- Pode ser instalado na tela inicial ("Adicionar à tela de início"): manifesto e ícone em `public/`.
+- Pode ser instalado na tela inicial ("Adicionar à tela de início"): manifesto e ícones PNG em `public/`
+  (`apple-touch-icon.png` 180px para iPhone; 192/512 e versão *maskable* para Android).
 
 ### Modelo do fluxo de caixa
 
