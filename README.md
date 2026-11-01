@@ -16,6 +16,14 @@ planejamento mensal, registro e categorização de despesas, metas, alertas de v
 | **Open Finance** | Conexão com bancos via agregador [Pluggy](https://pluggy.ai); transações importadas sem duplicar e categorizadas. Sem credenciais, roda em modo sandbox com dados simulados. |
 | **Assistente IA** | Previsão de gastos do próximo mês por categoria e recomendações. Com `ANTHROPIC_API_KEY`, usa o Claude para análise personalizada e responde perguntas; sem a chave, usa as regras locais. |
 
+### No celular
+
+- Barra de abas embaixo (Painel, Fluxo, Lançar, Metas e **Mais** com as demais telas, conta e "Sair").
+- Fluxo pessoal e Empresa em **visão por mês** (‹ mês ›, uma linha por item com valor editável e a Base), com a tabela completa
+  num botão "Tabela".
+- Campos com 16px (sem zoom no iPhone), botões com área de toque maior, layout sem rolagem lateral.
+- Pode ser instalado na tela inicial ("Adicionar à tela de início"): manifesto e ícone em `public/`.
+
 ### Modelo do fluxo de caixa
 
 ```

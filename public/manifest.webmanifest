@@ -1,0 +1,11 @@
+{
+  "name": "Caxxa — Finanças pessoais",
+  "short_name": "Caxxa",
+  "description": "Controle financeiro pessoal e da empresa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f2",
+  "theme_color": "#1d6b52",
+  "lang": "pt-BR",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

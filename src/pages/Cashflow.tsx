@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { num, useFlowGrid, type SectionMeta } from "../components/FlowGrid";
+import { MonthPicker, num, useFlowGrid, type SectionMeta } from "../components/FlowGrid";
 import { PageHead } from "../components/ui";
 import type { Snapshot } from "../lib/analytics";
 import { api } from "../lib/api";
@@ -9,6 +9,7 @@ import { fmt, fmtK, monthLabel, monthRange } from "../lib/months";
 import { parseAmount } from "../lib/parse";
 import { uid } from "../lib/seed";
 import { useStore } from "../lib/store";
+import { useMobile } from "../lib/useMobile";
 import type { FlowLine, Investment, LineGroup } from "../lib/types";
 
 const SECTIONS: Record<LineGroup, SectionMeta> = {
@@ -25,6 +26,9 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const mobile = useMobile();
+  const [table, setTable] = useState(false);
+  const [month, setMonth] = useState(() => (months.includes(snap.month) ? snap.month : months[0]));
 
   const grid = useFlowGrid<LineGroup>({
     months,
@@ -64,25 +68,52 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     }
   }
 
+  /** Celular: um mês por vez, em lista. */
+  const monthView = () => {
+    const r = flow[Math.max(0, months.indexOf(month))];
+    if (!r) return null;
+    const c = snap.company.find((x) => x.month === r.month);
+    const rows = (g: LineGroup) => lines.filter((l) => l.group === g).map((l) => grid.monthRow(l, r.month));
+    return (
+      <div className="card m-view">
+        {grid.monthTotal("Saldo inicial", r.saldoInicial, true)}
+        {grid.monthSection("pessoal")}
+        {rows("pessoal")}
+        {grid.monthTotal("Saldo 1 (sobra do mês)", r.saldo1, true)}
+        {settings.sweep && r.resgate !== 0 && grid.monthTotal(r.resgate < 0 ? "Aplicado nos investimentos" : "Resgatado dos investimentos", r.resgate)}
+        {grid.monthSection("renda")}
+        {withdrawals.map((w) => (
+          <div className="m-row linked" key={w.id}>
+            <div className="m-row-main">
+              <span>
+                {w.name}{" "}
+                <a href="#empresa" className="sub">
+                  ↗ {company.name}
+                </a>
+              </span>
+              <span className="m-value computed-value">{num.format(c?.values[w.id] ?? 0)}</span>
+            </div>
+          </div>
+        ))}
+        {rows("renda")}
+        {grid.monthTotal("Receitas do mês", r.renda + r.retiradas)}
+        {grid.monthSection("extra")}
+        {rows("extra")}
+        {grid.monthTotal("Saldo final", r.saldoFinal, true)}
+        {grid.monthTotal("Total investido", r.totalInvestido)}
+        {r.previdencia > 0 && grid.monthTotal("Previdência", r.previdencia)}
+        {grid.monthTotal("Patrimônio", r.patrimonio, true)}
+      </div>
+    );
+  };
+
   const invRows = investments.filter((i) => i.kind === "investimento");
   const prevRows = investments.filter((i) => i.kind === "previdencia");
   const chart = flow.map((m) => ({ mes: monthLabel(m.month), v: Math.round(m.saldo1) }));
 
-  return (
+  // No celular a lista do mês vem primeiro; parâmetros e gráfico ficam no fim.
+  const settingsBlock = (
     <>
-      <PageHead title="Fluxo de caixa pessoal" sub="Fluxo pessoal no modelo da sua planilha: despesas, resgate, receitas (incluindo as retiradas da empresa) e investimentos.">
-        <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
-        <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>
-          {busy ? "Importando…" : "Importar planilha (.xlsx)"}
-        </button>
-      </PageHead>
-
-      {msg && (
-        <div className={`notice ${msg.kind === "err" ? "err" : ""}`} style={{ marginBottom: 12 }}>
-          {msg.text}
-        </div>
-      )}
-
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <div className="card">
           <h2>Parâmetros</h2>
@@ -154,7 +185,31 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
           </ResponsiveContainer>
         </div>
       </div>
+    </>
+  );
 
+  return (
+    <>
+      <PageHead title="Fluxo de caixa pessoal" sub="Fluxo pessoal no modelo da sua planilha: despesas, resgate, receitas (incluindo as retiradas da empresa) e investimentos.">
+        <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
+        <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>
+          {busy ? "Importando…" : "Importar planilha (.xlsx)"}
+        </button>
+      </PageHead>
+
+      {msg && (
+        <div className={`notice ${msg.kind === "err" ? "err" : ""}`} style={{ marginBottom: 12 }}>
+          {msg.text}
+        </div>
+      )}
+
+      {!mobile && settingsBlock}
+
+      {mobile && <MonthPicker months={months} value={month} onChange={setMonth} table={table} onTable={setTable} />}
+
+      {mobile && !table ? (
+        monthView()
+      ) : (
       <div className="table-wrap">
         <table className="flow">
           {grid.header}
@@ -193,6 +248,9 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
           </tbody>
         </table>
       </div>
+      )}
+
+      {mobile && <div style={{ marginTop: 16 }}>{settingsBlock}</div>}
 
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card-head">
@@ -211,7 +269,7 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
         </div>
         <div className="list">
           {investments.map((i) => (
-            <div className="list-item" key={i.id}>
+            <div className="list-item inv-item" key={i.id}>
               <input type="text" className="grow" defaultValue={i.name} aria-label="Nome" onBlur={(e) => e.target.value.trim() && setInv(i.id, { name: e.target.value.trim() })} />
               <label className="field">
                 Saldo no início

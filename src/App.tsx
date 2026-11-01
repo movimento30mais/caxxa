@@ -15,9 +15,9 @@ import Assistant from "./pages/Assistant";
 
 const PAGES = [
   { id: "painel", label: "Painel", icon: "◧" },
-  { id: "fluxo", label: "Fluxo pessoal", icon: "▦" },
+  { id: "fluxo", label: "Fluxo pessoal", icon: "▦", short: "Fluxo" },
   { id: "empresa", label: "Empresa", icon: "▣" },
-  { id: "lancamentos", label: "Lançamentos", icon: "≡" },
+  { id: "lancamentos", label: "Lançamentos", icon: "≡", short: "Lançar" },
   { id: "metas", label: "Metas", icon: "◎" },
   { id: "contas", label: "Contas a pagar", icon: "◷" },
   { id: "openfinance", label: "Open Finance", icon: "⇄" },
@@ -25,10 +25,14 @@ const PAGES = [
 ] as const;
 export type PageId = (typeof PAGES)[number]["id"];
 
+/** Abas fixas na barra inferior do celular; as demais ficam em "Mais". */
+const MOBILE_TABS: PageId[] = ["painel", "fluxo", "lancamentos", "metas"];
+
 export default function App({ session, onLogout }: { session: Session; onLogout: () => void }) {
   const { state, reset } = useStore();
   const [page, setPage] = useState<PageId>(() => (location.hash.slice(1) as PageId) || "painel");
   const [status, setStatus] = useState<ServerStatus | null>(null);
+  const [more, setMore] = useState(false);
   const snap = useMemo(() => snapshot(state), [state]);
   useBillNotifications(snap.alerts);
   const pendingBills = snap.alerts.filter((a) => a.status === "atrasada" || a.status === "vence-hoje" || a.status === "proxima").length;
@@ -39,6 +43,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
   useEffect(() => {
     if (location.hash.slice(1) !== page) history.pushState(null, "", `#${page}`);
     window.scrollTo(0, 0);
+    setMore(false);
   }, [page]);
   useEffect(() => {
     const onHash = () => setPage((location.hash.slice(1) as PageId) || "painel");
@@ -89,14 +94,52 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
           Open Finance: {status?.openFinance === "pluggy" ? "Pluggy" : "sandbox"}
         </div>
       </aside>
-      <nav className="mobile-nav">
-        {nav("")}
-        {session.authEnabled && (
-          <button className="nav-btn" onClick={onLogout}>
-            Sair
-          </button>
-        )}
+      {/* Celular: barra superior enxuta + barra de abas embaixo; o restante fica em "Mais". */}
+      <header className="m-topbar">
+        <div className="brand">
+          caxxa<span>.</span>
+        </div>
+        <span className="m-title">{PAGES.find((p) => p.id === page)?.label}</span>
+      </header>
+      <nav className="m-tabbar" aria-label="Navegação">
+        {MOBILE_TABS.map((id) => {
+          const p = PAGES.find((x) => x.id === id)!;
+          return (
+            <button key={id} className={page === id && !more ? "on" : ""} onClick={() => setPage(id)}>
+              <span className="m-tab-icon" aria-hidden>
+                {p.icon}
+              </span>
+              {"short" in p ? p.short : p.label}
+            </button>
+          );
+        })}
+        <button className={more || !MOBILE_TABS.includes(page) ? "on" : ""} onClick={() => setMore((v) => !v)} aria-expanded={more}>
+          <span className="m-tab-icon" aria-hidden>
+            ☰
+          </span>
+          Mais
+          {pendingBills > 0 && <span className="nav-badge">{pendingBills}</span>}
+        </button>
       </nav>
+      {more && (
+        <div className="m-sheet-backdrop" onClick={() => setMore(false)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Mais opções">
+            <div className="m-sheet-handle" />
+            {nav("")}
+            <div className="m-sheet-foot">
+              {session.authEnabled && <span>👤 {session.user}</span>}
+              <button className="btn small" onClick={() => confirm("Apagar seus dados neste navegador e voltar aos dados de exemplo?") && reset()}>
+                ↺ Dados de exemplo
+              </button>
+              {session.authEnabled && (
+                <button className="btn small" onClick={onLogout}>
+                  Sair
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <main className="main">
         <Onboarding onPj={() => setPage("empresa")} />
         {page === "painel" && <Dashboard snap={snap} go={setPage} />}

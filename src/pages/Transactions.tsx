@@ -119,11 +119,11 @@ export default function Transactions({ snap }: { snap: Snapshot }) {
           </div>
           <div className="list">
             {list.map((t) => (
-              <div className="list-item" key={t.id}>
-                <span className="sub" style={{ width: 44 }}>
+              <div className="list-item tx-item" key={t.id}>
+                <span className="sub tx-date" style={{ width: 44 }}>
                   {t.date.slice(8, 10)}/{t.date.slice(5, 7)}
                 </span>
-                <div className="grow">
+                <div className="grow tx-desc">
                   <div className="ellipsis">{t.description}</div>
                   <div className="sub">
                     {t.account}
@@ -131,6 +131,7 @@ export default function Transactions({ snap }: { snap: Snapshot }) {
                   </div>
                 </div>
                 <select
+                  className="tx-cat"
                   value={t.category}
                   aria-label="Categoria"
                   onChange={(e) => update((s) => ({ ...s, transactions: s.transactions.map((x) => (x.id === t.id ? { ...x, category: e.target.value } : x)) }))}
@@ -139,10 +140,10 @@ export default function Transactions({ snap }: { snap: Snapshot }) {
                     <option key={c}>{c}</option>
                   ))}
                 </select>
-                <span className={t.amount < 0 ? "neg" : "pos"} style={{ width: 110, textAlign: "right" }}>
+                <span className={`tx-amount ${t.amount < 0 ? "neg" : "pos"}`} style={{ width: 110, textAlign: "right" }}>
                   {fmt(t.amount)}
                 </span>
-                <button className="btn ghost small" title="Excluir" onClick={() => update((s) => ({ ...s, transactions: s.transactions.filter((x) => x.id !== t.id) }))}>
+                <button className="btn ghost small tx-del" aria-label={`Excluir ${t.description}`} title="Excluir" onClick={() => update((s) => ({ ...s, transactions: s.transactions.filter((x) => x.id !== t.id) }))}>
                   ✕
                 </button>
               </div>

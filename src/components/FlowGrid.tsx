@@ -190,5 +190,104 @@ export function useFlowGrid<G extends string>({ months, lines, setLines, section
     </tr>
   );
 
-  return { header, calcRow, lineRow, section, sectionRow, baseSum };
+  /* ---------- Visão por mês (celular): uma coluna, um mês de cada vez ---------- */
+
+  /** Linha editável do mês: nome à esquerda, valor à direita; Base e controles extras embaixo. */
+  const monthRow = (l: FlowLine<G>, month: MonthKey, opts: RowOptions = {}) => (
+    <div className="m-row" key={l.id}>
+      <div className="m-row-main">
+        <input
+          className="m-name"
+          defaultValue={l.name}
+          aria-label="Nome da linha"
+          onBlur={(e) => e.target.value.trim() && e.target.value !== l.name && setLine(l.id, (x) => ({ ...x, name: e.target.value.trim() }))}
+        />
+        {opts.computed ? (
+          <span className={`m-value computed-value ${(opts.computed[month] ?? 0) < 0 ? "neg" : ""}`}>{show(opts.computed[month]) || "0,00"}</span>
+        ) : (
+          <input
+            key={`${month}:${l.values[month] ?? ""}`}
+            className={`m-value ${(l.values[month] ?? 0) < 0 ? "neg" : ""}`}
+            inputMode="decimal"
+            placeholder="0,00"
+            defaultValue={show(l.values[month])}
+            aria-label={`${l.name} ${monthLabel(month)}`}
+            onBlur={(e) => commitCell(l, month, e.target.value, e.target)}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          />
+        )}
+      </div>
+      <div className="m-row-sub">
+        <span>
+          Base {opts.computed ? showBase(opts.computedBase) || "—" : showBase(l.base) || "—"}
+        </span>
+        {opts.controls}
+        <span className="m-actions">
+          {!opts.computed && (
+            <button className="btn ghost small" onClick={() => fillRight(l)} title="Repetir em todos os meses">
+              ⇥ todos os meses
+            </button>
+          )}
+          <button className="btn ghost small" aria-label={`Excluir ${l.name}`} onClick={() => confirm(`Excluir "${l.name}"?`) && setLines((ls) => ls.filter((x) => x.id !== l.id))}>
+            ✕
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+
+  const monthTotal = (label: ReactNode, value: number, strong = false) => (
+    <div className={`m-total ${strong ? "strong" : ""}`}>
+      <span>{label}</span>
+      <span className={value < 0 ? "neg" : undefined}>{num.format(value)}</span>
+    </div>
+  );
+
+  const monthSection = (group: G) => {
+    const meta = sections[group];
+    return (
+      <div className="m-section">
+        <span>{meta.title}</span>
+        <button className="btn small" onClick={() => setLines((ls) => [...ls, { id: uid("l"), name: "Nova linha", group, category: meta.category, values: {} }])}>
+          + linha
+        </button>
+      </div>
+    );
+  };
+
+  return { header, calcRow, lineRow, section, sectionRow, baseSum, monthRow, monthTotal, monthSection };
+}
+
+/** Seletor de mês do celular: ‹ nov/26 › e alternância entre a visão por mês e a tabela. */
+export function MonthPicker({ months, value, onChange, table, onTable }: { months: MonthKey[]; value: MonthKey; onChange: (m: MonthKey) => void; table: boolean; onTable: (t: boolean) => void }) {
+  const i = Math.max(0, months.indexOf(value));
+  return (
+    <div className="m-picker">
+      {!table && (
+        <div className="m-picker-month">
+          <button className="btn" disabled={i === 0} onClick={() => onChange(months[i - 1])} aria-label="Mês anterior">
+            ‹
+          </button>
+          <select value={months[i]} onChange={(e) => onChange(e.target.value)} aria-label="Mês">
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </select>
+          <button className="btn" disabled={i === months.length - 1} onClick={() => onChange(months[i + 1])} aria-label="Próximo mês">
+            ›
+          </button>
+        </div>
+      )}
+      <div className="tabs">
+        <button className={!table ? "on" : ""} onClick={() => onTable(false)}>
+          Mês
+        </button>
+        <button className={table ? "on" : ""} onClick={() => onTable(true)}>
+          Tabela
+        </button>
+      </div>
+    </div>
+  );
 }

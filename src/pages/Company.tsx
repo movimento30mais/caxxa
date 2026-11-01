@@ -1,11 +1,13 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { num, useFlowGrid, type SectionMeta } from "../components/FlowGrid";
+import { useState } from "react";
+import { MonthPicker, num, useFlowGrid, type SectionMeta } from "../components/FlowGrid";
 import { PageHead, Stat } from "../components/ui";
 import type { Snapshot } from "../lib/analytics";
 import { companyBase, companyEnabled } from "../lib/company";
 import { fmt, fmt0, fmtK, monthLabel, monthRange } from "../lib/months";
 import { parseAmount } from "../lib/parse";
 import { useStore } from "../lib/store";
+import { useMobile } from "../lib/useMobile";
 import type { CompanyGroup, CompanyLine } from "../lib/types";
 
 const SECTIONS: Record<CompanyGroup, SectionMeta> = {
@@ -25,14 +27,18 @@ export default function Company({ snap }: { snap: Snapshot }) {
   const patch = (id: string, p: Partial<CompanyLine>) =>
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : p.auto ? { ...l, auto: false } : l)));
 
+  const mobile = useMobile();
+  const [table, setTable] = useState(false);
+  const [month, setMonth] = useState(() => (months.includes(snap.month) ? snap.month : months[0]));
   const grid = useFlowGrid<CompanyGroup>({ months, lines: company.lines, setLines, sections: SECTIONS, outflow: ["despesa"] });
   const { calcRow, section } = grid;
   const valuesOf = (id: string) => Object.fromEntries(flow.map((c) => [c.month, c.values[id] ?? 0]));
 
-  const row = (l: CompanyLine) => {
+  /** Opções de cada linha: despesas em % e lucro automático viram valores calculados. */
+  const optsOf = (l: CompanyLine) => {
     if (l.group === "despesa") {
       const pct = l.pctFaturamento;
-      return grid.lineRow(l, {
+      return {
         computed: pct !== undefined ? valuesOf(l.id) : undefined,
         computedBase: base.perLine[l.id],
         controls: (
@@ -56,10 +62,10 @@ export default function Company({ snap }: { snap: Snapshot }) {
             %
           </label>
         ),
-      });
+      };
     }
     if (l.group === "retirada") {
-      return grid.lineRow(l, {
+      return {
         computed: l.auto ? valuesOf(l.id) : undefined,
         computedBase: base.perLine[l.id],
         controls: (
@@ -68,11 +74,34 @@ export default function Company({ snap }: { snap: Snapshot }) {
             auto
           </label>
         ),
-      });
+      };
     }
-    return grid.lineRow(l);
+    return {};
   };
-  const linesOf = (g: CompanyGroup) => company.lines.filter((l) => l.group === g).map(row);
+  const linesOf = (g: CompanyGroup) => company.lines.filter((l) => l.group === g).map((l) => grid.lineRow(l, optsOf(l)));
+
+  /** Celular: um mês por vez, em lista. */
+  const monthView = () => {
+    const c = flow[Math.max(0, months.indexOf(month))];
+    if (!c) return null;
+    const rows = (g: CompanyGroup) => company.lines.filter((l) => l.group === g).map((l) => grid.monthRow(l, c.month, optsOf(l)));
+    return (
+      <div className="card m-view">
+        {grid.monthTotal("Saldo inicial (caixa PJ)", c.saldoInicial, true)}
+        {grid.monthSection("faturamento")}
+        {rows("faturamento")}
+        {grid.monthTotal("Total faturamento", c.faturamento)}
+        {grid.monthSection("despesa")}
+        {rows("despesa")}
+        {grid.monthTotal("Total despesas", c.despesas)}
+        {grid.monthTotal("Resultado do mês", c.resultado, true)}
+        {grid.monthSection("retirada")}
+        {rows("retirada")}
+        {grid.monthTotal("Total retirado → pessoal", c.retiradas)}
+        {grid.monthTotal("Saldo final (caixa PJ)", c.saldoFinal, true)}
+      </div>
+    );
+  };
 
   if (!companyEnabled(company)) {
     return (
@@ -97,36 +126,9 @@ export default function Company({ snap }: { snap: Snapshot }) {
   const margem = first && first.faturamento ? first.resultado / first.faturamento : 0;
   const hasAuto = company.lines.some((l) => l.group === "retirada" && l.auto);
 
-  return (
+  // No celular a lista do mês vem primeiro; parâmetros e gráfico ficam no fim.
+  const settingsBlock = (
     <>
-      <PageHead title={company.name} sub="Fluxo de caixa da empresa. Pró-labore e lucro retirados entram automaticamente como receita no fluxo pessoal.">
-        <button
-          className="btn"
-          title="Para quem não é PJ: as receitas passam a vir só do fluxo pessoal"
-          onClick={() =>
-            confirm("Desligar o fluxo da empresa? Pró-labore e lucro deixam de entrar no fluxo pessoal (os dados da empresa ficam guardados).") &&
-            setCompany((c) => ({ ...c, enabled: false }))
-          }
-        >
-          Desligar empresa
-        </button>
-        <a className="btn" href="#fluxo">
-          Ver fluxo pessoal →
-        </a>
-      </PageHead>
-
-      <div className="grid g4">
-        <Stat label={`Faturamento em ${first ? monthLabel(first.month) : "—"}`} value={first ? fmt0(first.faturamento) : "—"} />
-        <Stat label="Despesas da empresa" value={first ? fmt0(-first.despesas) : "—"} tone="neg" delta={first?.faturamento ? `${Math.round((-first.despesas / first.faturamento) * 100)}% do faturamento` : undefined} />
-        <Stat label="Retiradas para o pessoal" value={first ? fmt0(first.retiradas) : "—"} tone="pos" delta={`margem do resultado: ${Math.round(margem * 100)}%`} />
-        <Stat
-          label={`Caixa da PJ em ${flow.length ? monthLabel(flow[flow.length - 1].month) : "—"}`}
-          value={flow.length ? fmt0(flow[flow.length - 1].saldoFinal) : "—"}
-          tone={flow.some((c) => c.saldoFinal < 0) ? "neg" : undefined}
-          delta={flow.some((c) => c.saldoFinal < 0) ? "caixa negativo em algum mês" : hasAuto ? "lucro distribuído automaticamente" : undefined}
-        />
-      </div>
-
       <div className="grid g3" style={{ margin: "16px 0" }}>
         <div className="card">
           <h2>Parâmetros</h2>
@@ -171,7 +173,46 @@ export default function Company({ snap }: { snap: Snapshot }) {
           </ResponsiveContainer>
         </div>
       </div>
+    </>
+  );
 
+  return (
+    <>
+      <PageHead title={company.name} sub="Fluxo de caixa da empresa. Pró-labore e lucro retirados entram automaticamente como receita no fluxo pessoal.">
+        <button
+          className="btn"
+          title="Para quem não é PJ: as receitas passam a vir só do fluxo pessoal"
+          onClick={() =>
+            confirm("Desligar o fluxo da empresa? Pró-labore e lucro deixam de entrar no fluxo pessoal (os dados da empresa ficam guardados).") &&
+            setCompany((c) => ({ ...c, enabled: false }))
+          }
+        >
+          Desligar empresa
+        </button>
+        <a className="btn" href="#fluxo">
+          Ver fluxo pessoal →
+        </a>
+      </PageHead>
+
+      <div className="grid g4">
+        <Stat label={`Faturamento em ${first ? monthLabel(first.month) : "—"}`} value={first ? fmt0(first.faturamento) : "—"} />
+        <Stat label="Despesas da empresa" value={first ? fmt0(-first.despesas) : "—"} tone="neg" delta={first?.faturamento ? `${Math.round((-first.despesas / first.faturamento) * 100)}% do faturamento` : undefined} />
+        <Stat label="Retiradas para o pessoal" value={first ? fmt0(first.retiradas) : "—"} tone="pos" delta={`margem do resultado: ${Math.round(margem * 100)}%`} />
+        <Stat
+          label={`Caixa da PJ em ${flow.length ? monthLabel(flow[flow.length - 1].month) : "—"}`}
+          value={flow.length ? fmt0(flow[flow.length - 1].saldoFinal) : "—"}
+          tone={flow.some((c) => c.saldoFinal < 0) ? "neg" : undefined}
+          delta={flow.some((c) => c.saldoFinal < 0) ? "caixa negativo em algum mês" : hasAuto ? "lucro distribuído automaticamente" : undefined}
+        />
+      </div>
+
+      {!mobile && settingsBlock}
+
+      {mobile && <MonthPicker months={months} value={month} onChange={setMonth} table={table} onTable={setTable} />}
+
+      {mobile && !table ? (
+        monthView()
+      ) : (
       <div className="table-wrap">
         <table className="flow">
           {grid.header}
@@ -191,6 +232,8 @@ export default function Company({ snap }: { snap: Snapshot }) {
           </tbody>
         </table>
       </div>
+      )}
+      {mobile && <div style={{ marginTop: 16 }}>{settingsBlock}</div>}
     </>
   );
 }
