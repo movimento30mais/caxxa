@@ -253,3 +253,64 @@ describe("contas a pagar automáticas", () => {
     expect(billAlerts([bill], now, "2026-12")[0].status).toBe("ok");
   });
 });
+
+describe("meta de patrimônio (do fluxo, com rendimentos)", () => {
+  const settings = { startMonth: "2026-11", months: 12, openingBalance: 0, sweep: true };
+  const lines = [line("Despesas", "pessoal", Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`${2026 + Math.floor((10 + i) / 12)}-${String(((10 + i) % 12) + 1).padStart(2, "0")}`, -4000]))), line("Salário", "renda", {})];
+  const inv: Investment[] = [
+    { id: "a", name: "CDB", balance: 10000, monthlyRate: 0.01, sweepTarget: true, kind: "investimento" },
+    { id: "p", name: "Previdência", balance: 20000, monthlyRate: 0.005, sweepTarget: false, kind: "previdencia" },
+  ];
+  // Salário de 5.000 chega no fim do mês: a partir do 2º mês sobra 1.000 aplicado nos investimentos.
+  const retiradas = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`${2026 + Math.floor((10 + i) / 12)}-${String(((10 + i) % 12) + 1).padStart(2, "0")}`, 5000]));
+  const flow = computeCashflow({ ...settings, openingBalance: 4000 }, lines, inv, retiradas);
+  const goal = { id: "g", name: "Patrimônio", target: 50000, saved: 0, deadline: "2028-11", kind: "patrimonio" as const };
+
+  it("guardado = investimentos + previdência do mês atual no fluxo (sem saldo em conta)", async () => {
+    const { goalProgress } = await import("../src/lib/goals");
+    const p = goalProgress(goal, "2026-11", flow, settings, inv);
+    expect(p.saved).toBeCloseTo(flow[0].totalInvestido + flow[0].previdencia);
+    // A diferença para o "Patrimônio" do fluxo é exatamente o saldo em conta, que fica de fora.
+    expect(flow[0].saldoFinal).toBeGreaterThan(0);
+    expect(flow[0].patrimonio - p.saved).toBeCloseTo(flow[0].saldoFinal);
+    const semPrev = goalProgress({ ...goal, includePrevidencia: false }, "2026-11", flow, settings, inv);
+    expect(semPrev.saved).toBeCloseTo(flow[0].totalInvestido);
+  });
+
+  it("projeção usa o fluxo e depois juros compostos com rendimento médio e aporte médio", async () => {
+    const { goalProgress } = await import("../src/lib/goals");
+    const p = goalProgress(goal, "2026-11", flow, settings, inv);
+    const a = p.auto!;
+    // Rendimento médio ponderado pelo saldo: (10.000·1% + 20.000·0,5%) / 30.000
+    expect(a.rate).toBeCloseTo((100 + 100) / 30000);
+    expect(a.series[0]).toEqual({ month: "2026-11", value: p.saved });
+    expect(a.series[11].value).toBeCloseTo(flow[11].totalInvestido + flow[11].previdencia);
+    // Depois do horizonte: valor anterior × (1 + taxa) + aporte médio
+    expect(a.series[12].value).toBeCloseTo(a.series[11].value * (1 + a.rate) + a.contribution);
+    expect(a.series.at(-1)!.month).toBe("2028-11");
+    expect(a.atDeadline).toBeCloseTo(a.series.at(-1)!.value);
+    // Primeiro mês em que passa do alvo
+    const first = a.series.find((x) => x.value >= goal.target);
+    if (first) expect(a.reachMonth).toBe(first.month);
+  });
+
+  it("aporte necessário desconta o rendimento (fórmula de juros compostos)", async () => {
+    const { goalProgress, monthsBetween } = await import("../src/lib/goals");
+    const p = goalProgress(goal, "2026-11", flow, settings, inv);
+    const r = p.auto!.rate;
+    const n = monthsBetween("2026-11", goal.deadline);
+    // Aplicando o aporte calculado todo mês, chega exatamente no alvo
+    let v = p.saved;
+    for (let i = 0; i < n; i++) v = v * (1 + r) + p.monthly;
+    expect(v).toBeCloseTo(goal.target, 0);
+    // E é menor que a conta simples (o que falta dividido pelos meses)
+    expect(p.monthly).toBeLessThan((goal.target - p.saved) / n);
+  });
+
+  it("meta comum continua com o valor guardado à mão", async () => {
+    const { goalProgress } = await import("../src/lib/goals");
+    const p = goalProgress({ ...goal, kind: "manual", saved: 2000 }, "2026-11", flow, settings, inv);
+    expect(p.saved).toBe(2000);
+    expect(p.auto).toBeUndefined();
+  });
+});

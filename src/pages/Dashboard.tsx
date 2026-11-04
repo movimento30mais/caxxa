@@ -1,7 +1,7 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { PageId } from "../App";
 import { BillStatus, CategoryBars, InsightList, PageHead, Stat, dueText } from "../components/ui";
-import { goalMonthly, localInsights, type Snapshot } from "../lib/analytics";
+import { goalsProgress, localInsights, type Snapshot } from "../lib/analytics";
 import { fmt, fmt0, fmtK, monthLabel } from "../lib/months";
 import { useStore } from "../lib/store";
 
@@ -151,19 +151,24 @@ export default function Dashboard({ snap, go }: { snap: Snapshot; go: (p: PageId
             </button>
           </div>
           <div className="list">
-            {state.goals.map((g) => (
+            {goalsProgress(state, snap).map(({ goal: g, saved, monthly, auto }) => (
               <div className="list-item" key={g.id} style={{ display: "block" }}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <span className="ellipsis">
                     {g.icon} {g.name}
                   </span>
-                  <span className="sub">{Math.round((g.saved / g.target) * 100)}%</span>
+                  <span className="sub">{Math.round((saved / g.target) * 100)}%</span>
                 </div>
                 <div className="progress" style={{ margin: "6px 0 4px" }}>
-                  <div style={{ width: `${Math.min(100, (g.saved / g.target) * 100)}%` }} />
+                  <div style={{ width: `${Math.min(100, (saved / g.target) * 100)}%` }} />
                 </div>
                 <div className="sub">
-                  {fmt0(g.saved)} de {fmt0(g.target)} · {fmt0(goalMonthly(g, snap.month))}/mês até {monthLabel(g.deadline)}
+                  {fmt0(saved)} de {fmt0(g.target)} ·{" "}
+                  {auto
+                    ? auto.reachMonth
+                      ? `atinge em ${monthLabel(auto.reachMonth)}`
+                      : "não atinge pela projeção"
+                    : `${fmt0(monthly)}/mês até ${monthLabel(g.deadline)}`}
                 </div>
               </div>
             ))}

@@ -83,6 +83,10 @@ export interface Goal {
   saved: number;
   deadline: string; // AAAA-MM
   icon?: string;
+  /** "patrimonio": o valor guardado vem do fluxo (investimentos + previdência, com rendimentos); senão, é lançado à mão. */
+  kind?: "manual" | "patrimonio";
+  /** Meta de patrimônio: soma a previdência (padrão: sim). O saldo em conta corrente não entra. */
+  includePrevidencia?: boolean;
 }
 
 export interface Bill {

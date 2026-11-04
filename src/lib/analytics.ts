@@ -1,5 +1,6 @@
 import { computeCashflow, plannedByCategory, type MonthResult } from "./cashflow";
 import { billsForMonth } from "./bills";
+import { goalProgress } from "./goals";
 import { companyEnabled, computeCompany, type CompanyMonth } from "./company";
 import { addMonths, currentMonth, fmt0, monthLabel, monthOf } from "./months";
 import type { AppState, Bill, Goal, MonthKey, Transaction } from "./types";
@@ -102,12 +103,11 @@ export function billAlerts(bills: Bill[], now = new Date(), month: MonthKey = cu
     .sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
-export function goalMonthly(goal: Goal, from: MonthKey): number {
-  const [fy, fm] = from.split("-").map(Number);
-  const [ty, tm] = goal.deadline.split("-").map(Number);
-  const months = Math.max(1, (ty - fy) * 12 + (tm - fm));
-  return Math.max(0, (goal.target - goal.saved) / months);
-}
+export { goalMonthly } from "./goals";
+
+/** Progresso de cada meta (as de patrimônio leem o fluxo). */
+export const goalsProgress = (state: AppState, snap: Snapshot) =>
+  state.goals.map((g) => ({ goal: g, ...goalProgress(g, snap.month, snap.flow, state.settings, state.investments) }));
 
 export interface Insight {
   titulo: string;
@@ -206,7 +206,7 @@ export function localInsights(state: AppState, snap: Snapshot): Insight[] {
 
   // 5. Metas: o excedente médio cobre os aportes necessários?
   const surplus = flow.slice(0, 3).reduce((a, m) => a + m.saldo1, 0) / Math.max(1, Math.min(3, flow.length));
-  const needed = state.goals.reduce((a, g) => a + goalMonthly(g, snap.month), 0);
+  const needed = goalsProgress(state, snap).reduce((a, p) => a + p.monthly, 0);
   if (state.goals.length) {
     out.push({
       titulo: needed > surplus ? "Metas exigem mais do que sobra" : "Metas cabem no orçamento",
@@ -260,7 +260,15 @@ export function aiPayload(state: AppState, snap: Snapshot) {
     })),
     orcamentoMensalBase: Object.fromEntries(Object.entries(snap.planned).map(([k, v]) => [k, Math.round(v)])),
     previsaoLocal: snap.forecast.map((f) => ({ categoria: f.category, previsto: Math.round(f.previsto), tendenciaMensal: Math.round(f.tendencia) })),
-    metas: state.goals.map((g) => ({ nome: g.name, alvo: g.target, guardado: g.saved, prazo: g.deadline, aporteMensalNecessario: Math.round(goalMonthly(g, snap.month)) })),
+    metas: goalsProgress(state, snap).map((p) => ({
+      nome: p.goal.name,
+      tipo: p.goal.kind === "patrimonio" ? "patrimônio (investimentos do fluxo, com rendimentos)" : "valor guardado à mão",
+      alvo: p.goal.target,
+      guardado: Math.round(p.saved),
+      prazo: p.goal.deadline,
+      aporteMensalNecessario: Math.round(p.monthly),
+      ...(p.auto ? { atingeEm: p.auto.reachMonth, projecaoNoPrazo: Math.round(p.auto.atDeadline) } : {}),
+    })),
     contasAVencer: snap.alerts.filter((a) => a.status !== "paga").map((a) => ({ nome: a.bill.name, valor: a.bill.amount, diasParaVencer: a.daysLeft })),
     investimentos: state.investments.map((i) => ({ nome: i.name, saldo: Math.round(i.balance), rendimentoMensal: i.monthlyRate, tipo: i.kind })),
   };
