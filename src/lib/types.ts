@@ -93,6 +93,21 @@ export interface Bill {
   category: string;
   /** Meses (AAAA-MM) já pagos. */
   paid: MonthKey[];
+  /** De onde vem: cadastrada à mão, ou gerada de uma despesa do fluxo pessoal / da empresa. */
+  source?: "manual" | "pessoal" | "empresa";
+  lineId?: string;
+  /** Valor calculado (ex.: % do faturamento) — não editável na conta. */
+  computed?: boolean;
+}
+
+/** Ajustes da conta a pagar gerada automaticamente de uma despesa do fluxo (por id da linha). */
+export interface LineBill {
+  dueDay: number;
+  paid: MonthKey[];
+  /** Nome próprio na lista de contas (senão, o nome da linha). */
+  name?: string;
+  /** Não é uma conta a pagar (ex.: "Lazer"): some da lista. */
+  hidden?: boolean;
 }
 
 export interface BankConnection {
@@ -111,7 +126,10 @@ export interface AppState {
   investments: Investment[];
   transactions: Transaction[];
   goals: Goal[];
+  /** Contas cadastradas à mão. */
   bills: Bill[];
+  /** Ajustes das contas geradas das despesas do fluxo. */
+  lineBills?: Record<string, LineBill>;
   connections: BankConnection[];
   /** false = ainda não respondeu "Como você recebe?" (CLT ou PJ). Estados antigos não têm o campo e não perguntam. */
   onboarded?: boolean;

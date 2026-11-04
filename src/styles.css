@@ -208,6 +208,18 @@ tr:hover .line-actions, .line-actions:focus-within { opacity: 1; }
 .m-sync { margin-left: auto; white-space: nowrap; }
 .sync-wait { color: var(--muted); }
 
+/* Contas a pagar */
+.bill-item { align-items: center; }
+.bill-main { display: flex; flex-direction: column; gap: 2px; }
+.bill-name { border: 1px solid transparent; background: none; padding: 3px 4px; margin-left: -4px; border-radius: 6px; font-weight: 500; width: 100%; }
+.bill-name:focus, .bill-day input:focus, .bill-amount:focus { border-color: var(--accent); outline: none; background: var(--surface); }
+.bill-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bill-day { display: inline-flex; align-items: center; gap: 4px; }
+.bill-day input { width: 52px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); text-align: center; }
+input.bill-amount { width: 110px; text-align: right; border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; background: var(--surface); }
+span.bill-amount { width: 110px; text-align: right; }
+details.card summary { cursor: pointer; }
+
 /* ---------- Celular ---------- */
 .m-topbar, .m-tabbar, .m-picker, .m-sheet-backdrop { display: none; }
 
@@ -300,6 +312,14 @@ span.m-value { border-color: transparent; background: none; }
   .tx-date { grid-area: date; width: auto !important; align-self: center; }
   .tx-cat { grid-area: cat; font-size: 13px !important; padding: 3px 6px; justify-self: end; }
   .tx-del { grid-area: del; align-self: center; }
+
+  /* Contas a pagar: nome e vencimento em cima; situação e valor embaixo */
+  .bill-item { display: grid; grid-template-columns: auto 1fr auto auto; grid-template-areas: "check main main act" "check status amount act"; column-gap: 8px; row-gap: 6px; }
+  .bill-check { grid-area: check; width: 22px; height: 22px; }
+  .bill-main { grid-area: main; min-width: 0; }
+  .bill-item > .chip { grid-area: status; justify-self: start; align-self: center; }
+  .bill-item > .bill-amount { grid-area: amount; width: 108px !important; }
+  .bill-item > .btn { grid-area: act; }
 
   /* Investimentos em cartão */
   .inv-item { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

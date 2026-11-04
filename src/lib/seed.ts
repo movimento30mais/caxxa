@@ -1,5 +1,5 @@
 import { addMonths, currentMonth, monthRange } from "./months";
-import type { AppState, Bill, CompanyLine, FlowLine, LineGroup, Transaction } from "./types";
+import type { AppState, CompanyLine, LineBill, FlowLine, LineGroup, Transaction } from "./types";
 
 let seq = 0;
 export const uid = (p = "id") => `${p}_${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -64,15 +64,24 @@ export function demoState(now = new Date()): AppState {
       { id: uid("g"), name: "Reserva de emergência (6 meses)", target: 30000, saved: 5000, deadline: addMonths(start, 18), icon: "🛟" },
       { id: uid("g"), name: "Viagem de férias", target: 6000, saved: 1000, deadline: addMonths(start, 10), icon: "✈️" },
     ],
-    bills: ([
-      { id: uid("b"), name: "Aluguel + condomínio", amount: 1800, dueDay: 5, category: "Moradia", paid: [] },
-      { id: uid("b"), name: "Fatura do cartão", amount: 1200, dueDay: 10, category: "Cartões", paid: [] },
-      { id: uid("b"), name: "Luz + internet", amount: 250, dueDay: 20, category: "Moradia", paid: [] },
-    ] as Bill[]).map((b) => (b.dueDay < now.getDate() - 2 ? { ...b, paid: [start] } : b)),
+    // Contas a pagar vêm das despesas do fluxo; aqui só os vencimentos. Mercado, transporte e lazer não são contas.
+    bills: [],
+    lineBills: Object.fromEntries<LineBill>([
+      ...lines
+        .filter((l) => l.group === "pessoal")
+        .map((l): [string, LineBill] => {
+          const dueDay = DUE_DAYS[l.name] ?? 10;
+          return [l.id, { dueDay, paid: dueDay < now.getDate() - 2 ? [start] : [], hidden: !(l.name in DUE_DAYS) }];
+        }),
+      ...companyLines.filter((l) => l.group === "despesa").map((l): [string, LineBill] => [l.id, { dueDay: 20, paid: [] }]),
+    ]),
     connections: [],
     onboarded: false,
   };
 }
+
+/** Vencimento das despesas de exemplo que são contas a pagar. */
+const DUE_DAYS: Record<string, number> = { "Aluguel + condomínio": 5, "Cartão de crédito": 10, "Luz + internet": 20 };
 
 /** Três meses de lançamentos fictícios e o mês atual até hoje, para os gráficos e a IA terem histórico. */
 function demoTransactions(start: string, today: number): Transaction[] {

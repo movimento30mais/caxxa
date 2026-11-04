@@ -1,4 +1,5 @@
 import { computeCashflow, plannedByCategory, type MonthResult } from "./cashflow";
+import { billsForMonth } from "./bills";
 import { companyEnabled, computeCompany, type CompanyMonth } from "./company";
 import { addMonths, currentMonth, fmt0, monthLabel, monthOf } from "./months";
 import type { AppState, Bill, Goal, MonthKey, Transaction } from "./types";
@@ -78,13 +79,14 @@ export interface BillAlert {
   status: "atrasada" | "vence-hoje" | "proxima" | "ok" | "paga";
 }
 
-export function billAlerts(bills: Bill[], now = new Date()): BillAlert[] {
-  const month = currentMonth(now);
+/** Situação de cada conta no mês (por padrão, o mês atual). */
+export function billAlerts(bills: Bill[], now = new Date(), month: MonthKey = currentMonth(now)): BillAlert[] {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const [y, m] = month.split("-").map(Number);
   return bills
     .map((bill) => {
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const dueDate = new Date(now.getFullYear(), now.getMonth(), Math.min(bill.dueDay, lastDay));
+      const lastDay = new Date(y, m, 0).getDate();
+      const dueDate = new Date(y, m - 1, Math.min(bill.dueDay, lastDay));
       const daysLeft = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
       const status: BillAlert["status"] = bill.paid.includes(month)
         ? "paga"
@@ -140,7 +142,7 @@ export function snapshot(state: AppState, now = new Date()): Snapshot {
     forecast: forecastSpending(state.transactions, addMonths(month, 1)),
     planned: plannedByCategory(state.lines, month),
     actual: spendingByCategory(state.transactions, month),
-    alerts: billAlerts(state.bills, now),
+    alerts: billAlerts(billsForMonth(state, month, company).visible, now),
   };
 }
 

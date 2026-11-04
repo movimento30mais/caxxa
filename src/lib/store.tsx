@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { mergeManualDuplicates } from "./bills";
 import { splitCompany, type LegacyLine } from "./migrate";
 import { demoState } from "./seed";
 import type { AppState } from "./types";
@@ -15,7 +16,8 @@ function normalize(parsed: AppState | null | undefined): AppState | null {
   if (!parsed || parsed.version !== 1) return null;
   // Estados salvos antes do fluxo da empresa existir: separa as linhas da PJ.
   if (!parsed.company) Object.assign(parsed, splitCompany(parsed.lines as LegacyLine[]));
-  return parsed;
+  // Contas a pagar passaram a vir das despesas do fluxo: contas manuais repetidas viram as automáticas.
+  return mergeManualDuplicates(parsed);
 }
 
 interface Local {

@@ -190,3 +190,66 @@ describe("empresa opcional e exemplos de novos usuários", () => {
     expect(companyEnabled({ name: "x", openingBalance: 0, lines: [], enabled: false })).toBe(false);
   });
 });
+
+describe("contas a pagar automáticas", () => {
+  const base = async () => {
+    const { demoState } = await import("../src/lib/seed");
+    return demoState(new Date(2026, 10, 4));
+  };
+
+  it("gera uma conta por despesa do fluxo pessoal com valor no mês", async () => {
+    const { billsForMonth } = await import("../src/lib/bills");
+    const st = await base();
+    const { visible, hidden } = billsForMonth(st, "2026-11");
+    expect(visible.map((b) => [b.name, b.amount, b.dueDay, b.source])).toEqual([
+      ["Aluguel + condomínio", 1800, 5, "pessoal"],
+      ["Cartão de crédito", 1200, 10, "pessoal"],
+      ["Luz + internet", 250, 20, "pessoal"],
+    ]);
+    // Mercado, transporte e lazer existem, mas marcados como "não é conta".
+    expect(hidden.map((b) => b.name)).toEqual(["Mercado", "Transporte", "Lazer"]);
+  });
+
+  it("inclui as despesas da empresa quando ela está ligada (com o valor em % já calculado)", async () => {
+    const { billsForMonth } = await import("../src/lib/bills");
+    const st = await base();
+    const off = billsForMonth(st, "2026-11").visible.filter((b) => b.source === "empresa");
+    expect(off).toHaveLength(0);
+    const on = billsForMonth({ ...st, company: { ...st.company, enabled: true } }, "2026-11").visible.filter((b) => b.source === "empresa");
+    expect(on.map((b) => [b.name, b.amount, b.computed])).toEqual([
+      ["Simples Nacional", 480, true],
+      ["Contabilidade", 300, false],
+    ]);
+  });
+
+  it("acompanha o valor do fluxo e usa nome/vencimento/pagamento editados", async () => {
+    const { billsForMonth } = await import("../src/lib/bills");
+    const st = await base();
+    const cartao = st.lines.find((l) => l.name === "Cartão de crédito")!;
+    const edited = {
+      ...st,
+      lines: st.lines.map((l) => (l.id === cartao.id ? { ...l, values: { ...l.values, "2026-11": -1500 } } : l)),
+      lineBills: { ...st.lineBills, [cartao.id]: { dueDay: 15, paid: ["2026-11"], name: "Fatura Nubank" } },
+    };
+    const b = billsForMonth(edited, "2026-11").visible.find((x) => x.lineId === cartao.id)!;
+    expect([b.name, b.amount, b.dueDay, b.paid]).toEqual(["Fatura Nubank", 1500, 15, ["2026-11"]]);
+  });
+
+  it("conta manual com o mesmo nome de uma despesa vira a automática (sem duplicar)", async () => {
+    const { billsForMonth, mergeManualDuplicates } = await import("../src/lib/bills");
+    const st = await base();
+    const legacy = { ...st, lineBills: undefined, bills: [{ id: "b1", name: "Aluguel + Condomínio", amount: 1800, dueDay: 7, category: "Moradia", paid: ["2026-10"] }, { id: "b2", name: "Academia", amount: 120, dueDay: 3, category: "Lazer", paid: [] }] };
+    const merged = mergeManualDuplicates(legacy);
+    expect(merged.bills.map((b) => b.name)).toEqual(["Academia"]);
+    const aluguel = billsForMonth(merged, "2026-11").visible.find((b) => b.name === "Aluguel + condomínio")!;
+    expect([aluguel.dueDay, aluguel.paid, aluguel.source]).toEqual([7, ["2026-10"], "pessoal"]);
+  });
+
+  it("situação das contas de outro mês", async () => {
+    const { billAlerts } = await import("../src/lib/analytics");
+    const bill = { id: "x", name: "X", amount: 1, dueDay: 10, category: "c", paid: [] };
+    const now = new Date(2026, 10, 4);
+    expect(billAlerts([bill], now, "2026-10")[0].status).toBe("atrasada");
+    expect(billAlerts([bill], now, "2026-12")[0].status).toBe("ok");
+  });
+});
