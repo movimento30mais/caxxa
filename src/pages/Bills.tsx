@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { BillStatus, PageHead, dueText } from "../components/ui";
 import { billAlerts, type BillAlert, type Snapshot } from "../lib/analytics";
-import { billsForMonth } from "../lib/bills";
+import { billsForMonth, payBill, unpayBill } from "../lib/bills";
+import { num } from "../components/FlowGrid";
 import { CATEGORY_NAMES } from "../lib/categories";
 import { fmt, fmt0, monthLabel } from "../lib/months";
 import { parseAmount } from "../lib/parse";
@@ -57,7 +58,25 @@ export default function Bills({ snap }: { snap: Snapshot }) {
       return { ...s, lineBills: { ...s.lineBills, [b.lineId]: { ...cur, ...lb } } };
     });
 
-  const togglePaid = (b: Bill) => patch(b, { paid: b.paid.includes(month) ? b.paid.filter((m) => m !== month) : [...b.paid, month] });
+  /**
+   * Marcar como paga: pergunta o valor pago (já preenchido com o previsto), registra o pagamento,
+   * cria o lançamento e tira a despesa das pendentes do fluxo. Desmarcar desfaz tudo.
+   */
+  const togglePaid = (b: Bill) => {
+    if (b.paid.includes(month)) {
+      update((s) => unpayBill(s, b, month));
+      return;
+    }
+    let amount = b.amount;
+    if (!b.computed) {
+      const raw = prompt(`Valor pago de "${b.name}" (${monthLabel(month)}):`, num.format(b.amount));
+      if (raw === null) return;
+      const v = parseAmount(raw);
+      if (!v) return;
+      amount = Math.abs(v);
+    }
+    update((s) => payBill(s, b, month, amount));
+  };
 
   /** Valor de conta automática = valor da despesa no fluxo; editar aqui atualiza o fluxo daquele mês. */
   const setAmount = (b: Bill, amount: number) =>
@@ -114,7 +133,11 @@ export default function Bills({ snap }: { snap: Snapshot }) {
           </div>
         </div>
         <BillStatus alert={a} />
-        {b.computed ? (
+        {b.paid.includes(month) ? (
+          <span className="bill-amount cell-paid" title={b.payments?.[month] ? `Pago em ${b.payments[month].date.split("-").reverse().join("/")}` : "Paga"}>
+            ✓ {num.format(b.payments?.[month]?.amount ?? b.amount)}
+          </span>
+        ) : b.computed ? (
           <span className="bill-amount computed-value" title="Calculado como % do faturamento (edite na Empresa)">
             {fmt(b.amount)}
           </span>
@@ -176,7 +199,7 @@ export default function Bills({ snap }: { snap: Snapshot }) {
         <div className="card">
           <div className="card-head">
             <h2>Pagas no mês</h2>
-            <span className="sub">{fmt0(paid.reduce((s, a) => s + a.bill.amount, 0))}</span>
+            <span className="sub">{fmt0(paid.reduce((s, a) => s + (a.bill.payments?.[month]?.amount ?? a.bill.amount), 0))}</span>
           </div>
           <div className="list">{paid.length ? paid.map(row) : <div className="empty">Nenhuma conta marcada como paga.</div>}</div>
         </div>

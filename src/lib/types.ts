@@ -102,6 +102,20 @@ export interface Bill {
   lineId?: string;
   /** Valor calculado (ex.: % do faturamento) — não editável na conta. */
   computed?: boolean;
+  /** Pagamentos registrados por mês. */
+  payments?: Record<MonthKey, Payment>;
+}
+
+/** Pagamento de uma conta num mês. */
+export interface Payment {
+  /** Valor efetivamente pago. */
+  amount: number;
+  /** Data do pagamento (AAAA-MM-DD). */
+  date: string;
+  /** Valor que estava previsto no fluxo antes do pagamento (para desfazer, se o pago foi diferente). */
+  planned: number;
+  /** Lançamento criado em Lançamentos para este pagamento. */
+  transactionId?: string;
 }
 
 /** Ajustes da conta a pagar gerada automaticamente de uma despesa do fluxo (por id da linha). */
@@ -112,6 +126,8 @@ export interface LineBill {
   name?: string;
   /** Não é uma conta a pagar (ex.: "Lazer"): some da lista. */
   hidden?: boolean;
+  /** Pagamentos registrados por mês (os meses pagos também ficam em `paid`). */
+  payments?: Record<MonthKey, Payment>;
 }
 
 export interface BankConnection {

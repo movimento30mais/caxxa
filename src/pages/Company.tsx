@@ -30,7 +30,7 @@ export default function Company({ snap }: { snap: Snapshot }) {
   const mobile = useMobile();
   const [table, setTable] = useState(false);
   const [month, setMonth] = useState(() => (months.includes(snap.month) ? snap.month : months[0]));
-  const grid = useFlowGrid<CompanyGroup>({ months, lines: company.lines, setLines, sections: SECTIONS, outflow: ["despesa"] });
+  const grid = useFlowGrid<CompanyGroup>({ months, lines: company.lines, setLines, sections: SECTIONS, outflow: ["despesa"], paid: snap.paid.byLine });
   const { calcRow, section } = grid;
   const valuesOf = (id: string) => Object.fromEntries(flow.map((c) => [c.month, c.values[id] ?? 0]));
 
@@ -88,6 +88,12 @@ export default function Company({ snap }: { snap: Snapshot }) {
     return (
       <div className="card m-view">
         {grid.monthTotal("Saldo inicial (caixa PJ)", c.saldoInicial, true)}
+        {c.pagas > 0 && (
+          <>
+            {grid.monthTotal("Despesas já pagas", -c.pagas)}
+            {grid.monthTotal("Caixa da PJ agora", c.caixaAgora, true)}
+          </>
+        )}
         {grid.monthSection("faturamento")}
         {rows("faturamento")}
         {grid.monthTotal("Total faturamento", c.faturamento)}
@@ -218,6 +224,12 @@ export default function Company({ snap }: { snap: Snapshot }) {
           {grid.header}
           <tbody>
             {calcRow("Saldo inicial (caixa PJ)", flow.map((c) => c.saldoInicial), "total")}
+            {flow.some((c) => c.pagas > 0) && (
+              <>
+                {calcRow("Despesas já pagas (✓)", flow.map((c) => (c.pagas ? -c.pagas : 0)))}
+                {calcRow("Caixa da PJ agora", flow.map((c) => c.caixaAgora), "total")}
+              </>
+            )}
             {section("faturamento")}
             {linesOf("faturamento")}
             {calcRow("Total faturamento", flow.map((c) => c.faturamento), "calc", base.faturamento)}

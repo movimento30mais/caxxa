@@ -208,6 +208,10 @@ tr:hover .line-actions, .line-actions:focus-within { opacity: 1; }
 .m-sync { margin-left: auto; white-space: nowrap; }
 .sync-wait { color: var(--muted); }
 
+/* Despesa paga (em Contas a pagar) */
+.cell-paid { display: inline-block; padding: 3px 5px; color: var(--good); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--good) 60%, transparent); white-space: nowrap; }
+span.m-value.cell-paid { border-color: transparent; background: none; }
+
 /* Contas a pagar */
 .bill-item { align-items: center; }
 .bill-main { display: flex; flex-direction: column; gap: 2px; }

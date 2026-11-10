@@ -94,7 +94,11 @@ export function BillStatus({ alert }: { alert: BillAlert }) {
 }
 
 export function dueText(a: BillAlert): string {
-  if (a.status === "paga") return `pago · vence dia ${a.bill.dueDay}`;
+  if (a.status === "paga") {
+    const m = `${a.dueDate.getFullYear()}-${String(a.dueDate.getMonth() + 1).padStart(2, "0")}`;
+    const date = a.bill.payments?.[m]?.date;
+    return date ? `pago em ${date.slice(8, 10)}/${date.slice(5, 7)} · vence dia ${a.bill.dueDay}` : `pago · vence dia ${a.bill.dueDay}`;
+  }
   if (a.daysLeft < 0) return `venceu há ${-a.daysLeft} ${a.daysLeft === -1 ? "dia" : "dias"}`;
   if (a.daysLeft === 0) return "vence hoje";
   return `vence em ${a.daysLeft} ${a.daysLeft === 1 ? "dia" : "dias"} (dia ${a.bill.dueDay})`;

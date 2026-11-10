@@ -4,6 +4,12 @@ import type { CashflowSettings, FlowLine, Investment, LineGroup, MonthKey } from
 export interface MonthResult {
   month: MonthKey;
   saldoInicial: number;
+  /** Despesas do mês já pagas (saíram da conta). */
+  pagas: number;
+  /** Saldo em conta agora: saldo inicial − despesas já pagas. */
+  saldoEmConta: number;
+  /** Despesas do mês ainda a pagar (negativo). */
+  pendente: number;
   pessoal: number;
   /** Saldo Inicial + despesas pessoais. */
   saldo1: number;
@@ -40,6 +46,8 @@ export function computeCashflow(
   investments: Investment[],
   /** Retiradas da empresa por mês (de computeCompany), que entram como receita. */
   retiradasPorMes: Record<MonthKey, number> = {},
+  /** Despesas já pagas por mês (de paidTotals): saem do saldo em conta, sem mudar o Saldo 1. */
+  pagasPorMes: Record<MonthKey, number> = {},
 ): MonthResult[] {
   const months = monthRange(settings.startMonth, settings.months);
   const balances: Record<string, number> = Object.fromEntries(investments.map((i) => [i.id, i.balance]));
@@ -66,9 +74,13 @@ export function computeCashflow(
       .filter((i) => i.kind === "previdencia")
       .reduce((a, i) => a + balances[i.id], 0);
 
+    const pagas = pagasPorMes[month] ?? 0;
     const result: MonthResult = {
       month,
       saldoInicial,
+      pagas,
+      saldoEmConta: saldoInicial - pagas,
+      pendente: pessoal + pagas,
       pessoal,
       saldo1,
       resgate,

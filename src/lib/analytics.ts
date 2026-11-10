@@ -1,5 +1,5 @@
 import { computeCashflow, plannedByCategory, type MonthResult } from "./cashflow";
-import { billsForMonth } from "./bills";
+import { billsForMonth, paidTotals, type PaidTotals } from "./bills";
 import { goalProgress } from "./goals";
 import { companyEnabled, computeCompany, type CompanyMonth } from "./company";
 import { addMonths, currentMonth, fmt0, monthLabel, monthOf } from "./months";
@@ -120,6 +120,8 @@ export interface Snapshot {
   month: MonthKey;
   flow: MonthResult[];
   company: CompanyMonth[];
+  /** Despesas do fluxo já pagas (por mês e por linha). */
+  paid: PaidTotals;
   history: MonthTotals[];
   forecast: CategoryForecast[];
   planned: Record<string, number>;
@@ -129,15 +131,17 @@ export interface Snapshot {
 
 export function snapshot(state: AppState, now = new Date()): Snapshot {
   const month = currentMonth(now);
-  const company = computeCompany(state.settings, state.company);
+  const paid = paidTotals(state);
+  const company = computeCompany(state.settings, state.company, paid.empresa);
   // Com a empresa desligada, nada vem dela para o pessoal.
   const retiradas = companyEnabled(state.company) ? Object.fromEntries(company.map((c) => [c.month, c.retiradas])) : {};
-  const flow = computeCashflow(state.settings, state.lines, state.investments, retiradas);
+  const flow = computeCashflow(state.settings, state.lines, state.investments, retiradas, paid.pessoal);
   const histMonths = historyMonths(state.transactions, addMonths(month, 1), 6);
   return {
     month,
     flow,
     company,
+    paid,
     history: monthlyTotals(state.transactions, histMonths),
     forecast: forecastSpending(state.transactions, addMonths(month, 1)),
     planned: plannedByCategory(state.lines, month),

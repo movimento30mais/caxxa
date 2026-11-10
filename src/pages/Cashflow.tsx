@@ -36,6 +36,7 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     setLines: (fn) => update((s) => ({ ...s, lines: fn(s.lines) })),
     sections: SECTIONS,
     outflow: ["pessoal"],
+    paid: snap.paid.byLine,
   });
   const { calcRow, section } = grid;
   const setInv = (id: string, patch: Partial<Investment>) =>
@@ -77,6 +78,12 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     return (
       <div className="card m-view">
         {grid.monthTotal("Saldo inicial", r.saldoInicial, true)}
+        {r.pagas > 0 && (
+          <>
+            {grid.monthTotal("Contas já pagas", -r.pagas)}
+            {grid.monthTotal("Saldo em conta agora", r.saldoEmConta, true)}
+          </>
+        )}
         {grid.monthSection("pessoal")}
         {rows("pessoal")}
         {grid.monthTotal("Saldo 1 (sobra do mês)", r.saldo1, true)}
@@ -215,6 +222,12 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
           {grid.header}
           <tbody>
             {calcRow("Saldo inicial", flow.map((m) => m.saldoInicial), "total")}
+            {flow.some((m) => m.pagas > 0) && (
+              <>
+                {calcRow("Contas já pagas (✓)", flow.map((m) => (m.pagas ? -m.pagas : 0)))}
+                {calcRow("Saldo em conta agora", flow.map((m) => m.saldoEmConta), "total")}
+              </>
+            )}
             {section("pessoal")}
             {linesOf("pessoal")}
             {calcRow("Saldo 1", flow.map((m) => m.saldo1), "total", grid.baseSum("pessoal"))}

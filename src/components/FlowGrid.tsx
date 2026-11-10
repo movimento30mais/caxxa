@@ -22,6 +22,8 @@ interface Options<G extends string> {
   sections: Record<G, SectionMeta>;
   /** Grupos em que o valor digitado é sempre uma saída (gravado negativo). */
   outflow: G[];
+  /** Valor já pago por linha e mês (em Contas a pagar): a célula aparece como paga e não é editável aqui. */
+  paid?: Record<string, Record<MonthKey, number>>;
 }
 
 interface RowOptions {
@@ -36,7 +38,15 @@ interface RowOptions {
  * Peças da grade mês a mês (cabeçalho, seções, linhas editáveis com coluna Base e linhas calculadas),
  * usadas pelo fluxo pessoal e pelo fluxo da empresa.
  */
-export function useFlowGrid<G extends string>({ months, lines, setLines, sections, outflow }: Options<G>) {
+export function useFlowGrid<G extends string>({ months, lines, setLines, sections, outflow, paid = {} }: Options<G>) {
+  const paidCell = (id: string, m: MonthKey, cls = "") => {
+    const v = paid[id]?.[m];
+    return v === undefined ? null : (
+      <span className={`cell-paid ${cls}`} title="Paga em Contas a pagar — desmarque lá para editar">
+        ✓ {num.format(v)}
+      </span>
+    );
+  };
   const setLine = (id: string, fn: (l: FlowLine<G>) => FlowLine<G>) => setLines((ls) => ls.map((l) => (l.id === id ? fn(l) : l)));
 
   /** Grava uma célula de mês ou, com month = "base", a coluna Base (orçamento mensal). */
@@ -151,11 +161,12 @@ export function useFlowGrid<G extends string>({ months, lines, setLines, section
       </td>
       {months.map((m) => (
         <td key={m}>
-          {opts.computed ? (
-            <span className={`computed-value ${(opts.computed[m] ?? 0) < 0 ? "neg" : ""}`}>{show(opts.computed[m])}</span>
-          ) : (
-            cellInput(l, m, l.values[m], `${l.name} ${monthLabel(m)}`, show)
-          )}
+          {paidCell(l.id, m) ??
+            (opts.computed ? (
+              <span className={`computed-value ${(opts.computed[m] ?? 0) < 0 ? "neg" : ""}`}>{show(opts.computed[m])}</span>
+            ) : (
+              cellInput(l, m, l.values[m], `${l.name} ${monthLabel(m)}`, show)
+            ))}
         </td>
       ))}
     </tr>
@@ -202,7 +213,7 @@ export function useFlowGrid<G extends string>({ months, lines, setLines, section
           aria-label="Nome da linha"
           onBlur={(e) => e.target.value.trim() && e.target.value !== l.name && setLine(l.id, (x) => ({ ...x, name: e.target.value.trim() }))}
         />
-        {opts.computed ? (
+        {paidCell(l.id, month, "m-value") ?? (opts.computed ? (
           <span className={`m-value computed-value ${(opts.computed[month] ?? 0) < 0 ? "neg" : ""}`}>{show(opts.computed[month]) || "0,00"}</span>
         ) : (
           <input
@@ -215,7 +226,7 @@ export function useFlowGrid<G extends string>({ months, lines, setLines, section
             onBlur={(e) => commitCell(l, month, e.target.value, e.target)}
             onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
           />
-        )}
+        ))}
       </div>
       <div className="m-row-sub">
         <span>

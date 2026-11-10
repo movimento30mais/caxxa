@@ -4,6 +4,10 @@ import type { CashflowSettings, CompanyLine, CompanyState, MonthKey } from "./ty
 export interface CompanyMonth {
   month: MonthKey;
   saldoInicial: number;
+  /** Despesas da empresa já pagas no mês. */
+  pagas: number;
+  /** Caixa da PJ agora: saldo inicial − despesas já pagas. */
+  caixaAgora: number;
   faturamento: number;
   /** Soma das despesas (negativa). */
   despesas: number;
@@ -31,7 +35,7 @@ function lineValue(l: CompanyLine, month: MonthKey, faturamento: number): number
  *   Retiradas   = pró-labore + lucro (a linha "auto" distribui o que sobra do resultado)
  *   Saldo final = Saldo inicial + Resultado − Retiradas  → próximo Saldo inicial
  */
-export function computeCompany(settings: CashflowSettings, company: CompanyState): CompanyMonth[] {
+export function computeCompany(settings: CashflowSettings, company: CompanyState, pagasPorMes: Record<MonthKey, number> = {}): CompanyMonth[] {
   let saldoInicial = company.openingBalance;
   return monthRange(settings.startMonth, settings.months).map((month) => {
     const values: Record<string, number> = {};
@@ -45,7 +49,8 @@ export function computeCompany(settings: CashflowSettings, company: CompanyState
     const auto = company.lines.find((l) => l.group === "retirada" && l.auto);
     if (auto) retiradas += values[auto.id] = Math.max(0, Math.round((resultado - retiradas) * 100) / 100);
     const saldoFinal = saldoInicial + resultado - retiradas;
-    const out: CompanyMonth = { month, saldoInicial, faturamento, despesas, resultado, retiradas, saldoFinal, values };
+    const pagas = pagasPorMes[month] ?? 0;
+    const out: CompanyMonth = { month, saldoInicial, pagas, caixaAgora: saldoInicial - pagas, faturamento, despesas, resultado, retiradas, saldoFinal, values };
     saldoInicial = saldoFinal;
     return out;
   });

@@ -314,3 +314,76 @@ describe("meta de patrimônio (do fluxo, com rendimentos)", () => {
     expect(p.auto).toBeUndefined();
   });
 });
+
+describe("pagar conta: sai das pendentes do fluxo e do saldo em conta", () => {
+  const now = new Date(2026, 10, 10);
+  const setup = async () => {
+    const { demoState } = await import("../src/lib/seed");
+    const { billsForMonth } = await import("../src/lib/bills");
+    const { snapshot } = await import("../src/lib/analytics");
+    const st = demoState(now);
+    // Começa sem nada pago, para o teste ser independente do dia.
+    const clean = { ...st, lineBills: Object.fromEntries(Object.entries(st.lineBills!).map(([k, v]) => [k, { ...v, paid: [] }])) };
+    const cartao = () => billsForMonth(clean, "2026-11").visible.find((b) => b.name === "Cartão de crédito")!;
+    return { st: clean, cartao, snapshot, billsForMonth };
+  };
+
+  it("pagar o valor previsto: saldo em conta cai, pendentes caem, Saldo 1 e saldo final não mudam", async () => {
+    const { payBill } = await import("../src/lib/bills");
+    const { st, cartao, snapshot } = await setup();
+    const before = snapshot(st, now).flow[0];
+    const after = snapshot(payBill(st, cartao(), "2026-11", 1200, now), now).flow[0];
+    expect(after.pagas).toBe(1200);
+    expect(after.saldoEmConta).toBe(before.saldoInicial - 1200);
+    expect(after.pendente).toBe(before.pessoal + 1200);
+    expect(after.saldo1).toBe(before.saldo1);
+    expect(after.saldoFinal).toBe(before.saldoFinal);
+  });
+
+  it("pagar valor diferente: o pago substitui o previsto e os saldos se ajustam", async () => {
+    const { payBill } = await import("../src/lib/bills");
+    const { st, cartao, snapshot } = await setup();
+    const before = snapshot(st, now).flow[0];
+    const paid = payBill(st, cartao(), "2026-11", 1380, now);
+    const after = snapshot(paid, now).flow[0];
+    // Com o resgate automático (modelo da planilha) a diferença sai da sobra do mês e, portanto, dos investimentos.
+    expect(after.saldo1).toBe(before.saldo1 - 180);
+    expect(after.totalInvestido).toBeCloseTo(before.totalInvestido - 180);
+    // Sem o resgate automático, ela aparece direto no saldo final.
+    const noSweep = (x: typeof st) => ({ ...x, settings: { ...x.settings, sweep: false } });
+    expect(snapshot(noSweep(paid), now).flow[0].saldoFinal).toBe(snapshot(noSweep(st), now).flow[0].saldoFinal - 180);
+    expect(paid.lines.find((l) => l.name === "Cartão de crédito")!.values["2026-11"]).toBe(-1380);
+  });
+
+  it("cria o lançamento com a data de hoje e desmarcar desfaz tudo", async () => {
+    const { payBill, unpayBill } = await import("../src/lib/bills");
+    const { st, cartao, snapshot, billsForMonth } = await setup();
+    const paid = payBill(st, cartao(), "2026-11", 1380, now);
+    const tx = paid.transactions.find((t) => t.externalId === `bill:${cartao().id}:2026-11`)!;
+    expect([tx.date, tx.amount, tx.description, tx.category]).toEqual(["2026-11-10", -1380, "Cartão de crédito", "Cartões"]);
+    const bill = billsForMonth(paid, "2026-11").visible.find((b) => b.name === "Cartão de crédito")!;
+    expect(bill.payments!["2026-11"]).toMatchObject({ amount: 1380, planned: 1200, date: "2026-11-10" });
+    const undone = unpayBill(paid, bill, "2026-11");
+    expect(undone.lines.find((l) => l.name === "Cartão de crédito")!.values["2026-11"]).toBe(-1200);
+    expect(undone.transactions.some((t) => t.id === tx.id)).toBe(false);
+    expect(snapshot(undone, now).flow[0]).toEqual(snapshot(st, now).flow[0]);
+  });
+
+  it("pagamento de outro mês usa o dia de vencimento como data", async () => {
+    const { paymentDate } = await import("../src/lib/bills");
+    expect(paymentDate("2026-12", 31, now)).toBe("2026-12-31");
+    expect(paymentDate("2027-02", 31, now)).toBe("2027-02-28");
+    expect(paymentDate("2026-11", 5, now)).toBe("2026-11-10");
+  });
+
+  it("despesa da empresa paga sai do caixa da PJ e não vira lançamento pessoal", async () => {
+    const { payBill } = await import("../src/lib/bills");
+    const { st, snapshot, billsForMonth } = await setup();
+    const pj = { ...st, company: { ...st.company, enabled: true } };
+    const contab = billsForMonth(pj, "2026-11").visible.find((b) => b.name === "Contabilidade")!;
+    const paid = payBill(pj, contab, "2026-11", 300, now);
+    const c = snapshot(paid, now).company[0];
+    expect([c.pagas, c.caixaAgora]).toEqual([300, c.saldoInicial - 300]);
+    expect(paid.transactions.length).toBe(pj.transactions.length);
+  });
+});
