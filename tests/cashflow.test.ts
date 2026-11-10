@@ -387,3 +387,31 @@ describe("pagar conta: sai das pendentes do fluxo e do saldo em conta", () => {
     expect(paid.transactions.length).toBe(pj.transactions.length);
   });
 });
+
+describe("resgate do investimento ao pagar contas", () => {
+  const settings = { startMonth: "2026-11", months: 2, openingBalance: 1000, sweep: true };
+  const lines = [line("Aluguel", "pessoal", { "2026-11": -1800, "2026-12": -1800 }), line("Cartão", "pessoal", { "2026-11": -700, "2026-12": -700 })];
+  const inv: Investment[] = [{ id: "a", name: "CDB", balance: 10000, monthlyRate: 0, sweepTarget: true, kind: "investimento" }];
+  const retiradas = { "2026-11": 3000, "2026-12": 3000 };
+
+  it("contas pagas além do saldo saem do investimento e a conta não fica negativa", () => {
+    const [nov] = computeCashflow(settings, lines, inv, retiradas, { "2026-11": 1800 });
+    expect(nov.resgatado).toBe(800);
+    expect(nov.saldoEmConta).toBe(0);
+    // Faz parte do resgate previsto para o mês: o total não muda.
+    expect(nov.resgate).toBe(1500);
+    expect(nov.resgatado).toBeLessThanOrEqual(nov.resgate);
+    const [semPagar] = computeCashflow(settings, lines, inv, retiradas);
+    expect([nov.saldo1, nov.saldoFinal, nov.investimentos.a]).toEqual([semPagar.saldo1, semPagar.saldoFinal, semPagar.investimentos.a]);
+  });
+
+  it("quando o saldo cobre as contas, nada é resgatado", () => {
+    const [nov] = computeCashflow({ ...settings, openingBalance: 5000 }, lines, inv, retiradas, { "2026-11": 2500 });
+    expect([nov.resgatado, nov.saldoEmConta]).toEqual([0, 2500]);
+  });
+
+  it("sem o resgate automático, a conta fica negativa (o app avisa)", () => {
+    const [nov] = computeCashflow({ ...settings, sweep: false }, lines, inv, retiradas, { "2026-11": 1800 });
+    expect([nov.resgatado, nov.saldoEmConta]).toEqual([0, -800]);
+  });
+});

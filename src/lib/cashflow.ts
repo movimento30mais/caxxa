@@ -6,7 +6,12 @@ export interface MonthResult {
   saldoInicial: number;
   /** Despesas do mês já pagas (saíram da conta). */
   pagas: number;
-  /** Saldo em conta agora: saldo inicial − despesas já pagas. */
+  /**
+   * Já resgatado do investimento para cobrir as contas pagas (com o resgate automático): o que as contas pagas
+   * passaram do saldo inicial. Faz parte do resgate previsto para o mês (não é um resgate a mais).
+   */
+  resgatado: number;
+  /** Saldo em conta agora: saldo inicial − despesas já pagas + já resgatado. */
   saldoEmConta: number;
   /** Despesas do mês ainda a pagar (negativo). */
   pendente: number;
@@ -75,11 +80,14 @@ export function computeCashflow(
       .reduce((a, i) => a + balances[i.id], 0);
 
     const pagas = pagasPorMes[month] ?? 0;
+    // Com o resgate automático, o que faltar na conta para pagar as contas sai do investimento na hora.
+    const resgatado = settings.sweep ? Math.max(0, pagas - saldoInicial) : 0;
     const result: MonthResult = {
       month,
       saldoInicial,
       pagas,
-      saldoEmConta: saldoInicial - pagas,
+      resgatado,
+      saldoEmConta: saldoInicial - pagas + resgatado,
       pendente: pessoal + pagas,
       pessoal,
       saldo1,

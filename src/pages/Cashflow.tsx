@@ -46,6 +46,8 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
     }));
 
   // Retiradas da empresa (pró-labore, lucro) entram como receitas, somente leitura aqui.
+  /** Investimento que recebe as aplicações e resgates do Saldo 1 (⇄). */
+  const sweepName = investments.find((i) => i.sweepTarget && i.kind === "investimento")?.name;
   const pj = companyEnabled(company);
   const withdrawals = pj ? company.lines.filter((l) => l.group === "retirada") : [];
   const fromCompanyBase = pj ? companyBase(company) : { perLine: {} as Record<string, number>, retiradas: 0 };
@@ -81,7 +83,9 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
         {r.pagas > 0 && (
           <>
             {grid.monthTotal("Contas já pagas", -r.pagas)}
+            {r.resgatado > 0 && grid.monthTotal(`Resgatado do investimento${sweepName ? ` (${sweepName})` : ""}`, r.resgatado)}
             {grid.monthTotal("Saldo em conta agora", r.saldoEmConta, true)}
+            {r.saldoEmConta < 0 && <p className="notice warn" style={{ margin: "8px 0" }}>A conta ficou negativa: ligue o resgate automático ou registre um resgate.</p>}
           </>
         )}
         {grid.monthSection("pessoal")}
@@ -225,6 +229,8 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
             {flow.some((m) => m.pagas > 0) && (
               <>
                 {calcRow("Contas já pagas (✓)", flow.map((m) => (m.pagas ? -m.pagas : 0)))}
+                {flow.some((m) => m.resgatado > 0) &&
+                  calcRow(`Resgatado do investimento${sweepName ? ` (${sweepName})` : ""}`, flow.map((m) => m.resgatado))}
                 {calcRow("Saldo em conta agora", flow.map((m) => m.saldoEmConta), "total")}
               </>
             )}
