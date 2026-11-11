@@ -11,6 +11,10 @@ export interface MonthResult {
    * passaram do saldo inicial. Faz parte do resgate previsto para o mês (não é um resgate a mais).
    */
   resgatado: number;
+  /** Investimento de resgate (⇄) agora: saldo no início do mês − já resgatado (o rendimento do mês entra no fim). */
+  investimentoAgora: number;
+  /** Resgate previsto para o mês que ainda não aconteceu (resgate do mês − já resgatado). */
+  resgateRestante: number;
   /** Saldo em conta agora: saldo inicial − despesas já pagas + já resgatado. */
   saldoEmConta: number;
   /** Despesas do mês ainda a pagar (negativo). */
@@ -69,6 +73,8 @@ export function computeCashflow(
     const extra = sumGroup(lines, "extra", month);
     const saldoFinal = saldo2 + renda + retiradas + extra;
 
+    // Saldo do investimento de resgate no início do mês (antes do rendimento e do resgate do mês).
+    const alvoInicio = target ? balances[target.id] : 0;
     for (const inv of investments) balances[inv.id] *= 1 + inv.monthlyRate;
     if (target) balances[target.id] -= resgate;
 
@@ -87,6 +93,8 @@ export function computeCashflow(
       saldoInicial,
       pagas,
       resgatado,
+      investimentoAgora: alvoInicio - resgatado,
+      resgateRestante: Math.max(0, resgate - resgatado),
       saldoEmConta: saldoInicial - pagas + resgatado,
       pendente: pessoal + pagas,
       pessoal,

@@ -401,6 +401,9 @@ describe("resgate do investimento ao pagar contas", () => {
     // Faz parte do resgate previsto para o mês: o total não muda.
     expect(nov.resgate).toBe(1500);
     expect(nov.resgatado).toBeLessThanOrEqual(nov.resgate);
+    // Investimento agora: saldo no início do mês − já resgatado; o restante do resgate ainda está previsto.
+    expect(nov.investimentoAgora).toBe(10000 - 800);
+    expect(nov.resgateRestante).toBe(1500 - 800);
     const [semPagar] = computeCashflow(settings, lines, inv, retiradas);
     expect([nov.saldo1, nov.saldoFinal, nov.investimentos.a]).toEqual([semPagar.saldo1, semPagar.saldoFinal, semPagar.investimentos.a]);
   });

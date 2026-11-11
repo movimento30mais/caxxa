@@ -86,6 +86,12 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
             {r.resgatado > 0 && grid.monthTotal(`Resgatado do investimento${sweepName ? ` (${sweepName})` : ""}`, r.resgatado)}
             {grid.monthTotal("Saldo em conta agora", r.saldoEmConta, true)}
             {r.saldoEmConta < 0 && <p className="notice warn" style={{ margin: "8px 0" }}>A conta ficou negativa: ligue o resgate automático ou registre um resgate.</p>}
+            {sweepName && settings.sweep && (
+              <>
+                {grid.monthTotal(`Investimento agora (${sweepName})`, r.investimentoAgora)}
+                {r.resgateRestante > 0 && grid.monthTotal("Resgate ainda previsto no mês", r.resgateRestante)}
+              </>
+            )}
           </>
         )}
         {grid.monthSection("pessoal")}
@@ -232,6 +238,12 @@ export default function Cashflow({ snap }: { snap: Snapshot }) {
                 {flow.some((m) => m.resgatado > 0) &&
                   calcRow(`Resgatado do investimento${sweepName ? ` (${sweepName})` : ""}`, flow.map((m) => m.resgatado))}
                 {calcRow("Saldo em conta agora", flow.map((m) => m.saldoEmConta), "total")}
+                {sweepName && settings.sweep && (
+                  <>
+                    {calcRow(`Investimento agora (${sweepName})`, flow.map((m) => m.investimentoAgora))}
+                    {flow.some((m) => m.resgateRestante > 0) && calcRow("Resgate ainda previsto no mês", flow.map((m) => m.resgateRestante))}
+                  </>
+                )}
               </>
             )}
             {section("pessoal")}
